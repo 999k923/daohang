@@ -25,6 +25,8 @@ body{
   font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
   background:var(--bg);
   color:var(--text);
+  height:100vh;
+  overflow:hidden;
 }
 
 a{color:inherit;text-decoration:none}
@@ -61,11 +63,12 @@ header h1{margin:0;font-size:18px}
 body.isAdmin .adminOnly{display:inline-flex}
 
 /* ===== Layout ===== */
-.wrap{max-width:1200px;margin:0 auto;padding:20px}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;height:calc(100vh - 110px)}
 .grid{
   display:grid;
   grid-template-columns:260px 1fr;
   gap:16px;
+  height:100%;
 }
 @media(max-width:900px){
   .grid{grid-template-columns:1fr}
@@ -79,7 +82,7 @@ body.isAdmin .adminOnly{display:inline-flex}
 }
 
 /* ===== Sidebar ===== */
-.sidebar{padding:12px;max-height:calc(100vh - 110px);overflow:auto}
+.sidebar{padding:12px;height:100%;overflow:auto}
 .catItem{
   padding:10px;
   border-radius:12px;
@@ -87,11 +90,55 @@ body.isAdmin .adminOnly{display:inline-flex}
   cursor:pointer;
   display:flex;
   justify-content:space-between;
+  align-items:center;
+  gap:8px;
 }
 .catItem.active{background:#eef2ff}
+.catGroup{margin-bottom:8px}
+.catToggle{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:8px;
+}
+.catToggle:hover{background:#f2f4f7}
+.catToggleIcon{
+  display:inline-block;
+  transition:transform .2s ease;
+  font-size:12px;
+  color:var(--muted);
+}
+.catGroup.expanded .catToggleIcon{transform:rotate(90deg)}
+.subList{
+  margin-left:12px;
+  padding-left:10px;
+  border-left:1px dashed var(--line);
+  display:none;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:8px;
+}
+.catGroup.expanded .subList{display:flex}
+.subItem{
+  padding:8px 10px;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:13px;
+  color:var(--text);
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+}
+.subItem:hover{background:#f8fafc}
+.subItem.active{background:#eff6ff;color:#1d4ed8}
 
 /* ===== Panel ===== */
-.panel{padding:14px}
+.panel{padding:14px;height:100%;overflow:auto}
 .subcats{display:flex;flex-direction:column;gap:16px}
 
 .subcat{
@@ -279,6 +326,8 @@ const LOCAL_CACHE_KEY = "navsite_local_cache_v1";
 let state = { version: 1, updatedAt: new Date().toISOString(), categories: [] };
 let activeCatId = null;
 let searchText = "";
+let activeSubcatId = null;
+const expandedCatIds = new Set();
 
 /** ==========================
  *  Utils
@@ -350,6 +399,16 @@ function resolveIconSrc(site){
   const auto = autoFaviconUrl(site.url, 64);
   return auto || placeholderIconDataUrl();
 }
+
+function subcatAnchorId(id){ return `subcat-${id}`; }
+function scrollToSubcat(id){
+  const panel = document.querySelector(".panel");
+  const el = document.getElementById(subcatAnchorId(id));
+  if(!panel || !el) return;
+  const top = Math.max(0, el.offsetTop - 8);
+  panel.scrollTo({ top, behavior:"smooth" });
+}
+function getActiveSubcatId(){ return activeSubcatId; }
 
 /** ==========================
  *  Tooltip Preview
@@ -548,14 +607,40 @@ function renderSidebar(){
   list.innerHTML="";
   const cats=[...(state.categories||[])].sort(byOrder);
   if(!activeCatId && cats[0]) activeCatId=cats[0].id;
+  if(activeCatId && expandedCatIds.size===0) expandedCatIds.add(activeCatId);
 
   cats.forEach(cat=>{
+    const group=document.createElement("div");
+    group.className="catGroup"+(expandedCatIds.has(cat.id)?" expanded":"");
+
     const item=document.createElement("div");
     item.className="catItem"+(cat.id===activeCatId?" active":"");
-    item.onclick=()=>{ activeCatId=cat.id; render(); };
 
     const left=document.createElement("div");
-    left.textContent=cat.name;
+    left.style.display="flex";
+    left.style.alignItems="center";
+    left.style.gap="8px";
+
+    const toggle=document.createElement("button");
+    toggle.className="catToggle";
+    toggle.setAttribute("aria-label", "展开/收起");
+    toggle.onclick=(e)=>{
+      e.stopPropagation();
+      if(expandedCatIds.has(cat.id)) expandedCatIds.delete(cat.id);
+      else expandedCatIds.add(cat.id);
+      renderSidebar();
+    };
+
+    const toggleIcon=document.createElement("span");
+    toggleIcon.className="catToggleIcon";
+    toggleIcon.textContent="▶";
+
+    toggle.appendChild(toggleIcon);
+
+    const name=document.createElement("div");
+    name.textContent=cat.name;
+
+    left.append(toggle, name);
 
     const right=document.createElement("div");
     right.style.display="flex";
@@ -576,15 +661,61 @@ function renderSidebar(){
       if(!requireAdmin()) return;
       if(confirm(`确定删除「${cat.name}」？`)){
         state.categories = state.categories.filter(c=>c.id!==cat.id);
+        expandedCatIds.delete(cat.id);
         if(activeCatId===cat.id) activeCatId = state.categories[0]?.id || null;
         await saveAll();
         render();
       }
     };
 
+    item.onclick=()=>{
+      activeCatId=cat.id;
+      activeSubcatId=null;
+      expandedCatIds.add(cat.id);
+      render();
+    };
+
     right.append(edit, del);
     item.append(left, right);
-    list.appendChild(item);
+
+    const subList=document.createElement("div");
+    subList.className="subList";
+    const subcats=(cat.subcategories||[]).slice().sort(byOrder);
+    if(!subcats.length){
+      const empty=document.createElement("div");
+      empty.style.fontSize="12px";
+      empty.style.color="var(--muted)";
+      empty.style.padding="4px 10px";
+      empty.textContent="暂无二级分类";
+      subList.appendChild(empty);
+    }else{
+      subcats.forEach(subcat=>{
+        const subItem=document.createElement("div");
+        subItem.className="subItem";
+        if(cat.id===activeCatId && subcat.id===getActiveSubcatId()) subItem.classList.add("active");
+
+        const subName=document.createElement("div");
+        subName.textContent=subcat.name;
+
+        const subMeta=document.createElement("div");
+        subMeta.style.fontSize="12px";
+        subMeta.style.color="var(--muted)";
+        subMeta.textContent=String(subcat.sites?.length||0);
+
+        subItem.append(subName, subMeta);
+        subItem.onclick=()=>{
+          activeCatId=cat.id;
+          activeSubcatId=subcat.id;
+          expandedCatIds.add(cat.id);
+          render();
+          requestAnimationFrame(()=>scrollToSubcat(subcat.id));
+        };
+        subList.appendChild(subItem);
+      });
+    }
+
+    group.append(item, subList);
+    list.appendChild(group);
   });
 }
 
@@ -605,6 +736,7 @@ function renderContent(){
   meta.textContent=`二级分类：${cat.subcategories?.length||0} · 最近更新：${fmtTime(state.updatedAt)}`;
 
   const subcats=(cat.subcategories||[]).slice().sort(byOrder);
+  if(activeSubcatId && !subcats.some(sc=>sc.id===activeSubcatId)) activeSubcatId=null;
 
   // 搜索
   if(searchText.trim()){
@@ -649,6 +781,7 @@ function renderContent(){
 function renderSubcatBlock(cat, subcat, sites, searchMode){
   const box=document.createElement("div");
   box.className="subcat";
+  box.id = subcatAnchorId(subcat.id);
 
   const head=document.createElement("div");
   head.className="subHead";
@@ -1122,6 +1255,3 @@ document.getElementById("searchInput").addEventListener("input",(e)=>{
 </script>
 </body>
 </html>
-
-  
-  
