@@ -1,4 +1,6 @@
-<img width="1851" height="690" alt="image" src="https://github.com/user-attachments/assets/8d2256b0-e3f7-4403-b39d-8f11ffb260d0" />
+<img width="1157" height="562" alt="image" src="https://github.com/user-attachments/assets/3843151f-2cf8-4a54-a0f0-96501f1acbe4" />
+# 所有导航网站实现前端管理，登录账号就有操作权限，不能录就只能查看。
+
 部署流程
 ==
 假设新站叫 nav2，域名 nav2.xxx.com，端口用 21190 。
