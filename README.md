@@ -1,7 +1,7 @@
 <img width="1851" height="690" alt="image" src="https://github.com/user-attachments/assets/8d2256b0-e3f7-4403-b39d-8f11ffb260d0" />
 部署流程
 ==
-假设新站叫 nav2，域名 nav2.xxx.com，端口用 21190（不要跟旧站 21189 冲突）。
+假设新站叫 nav2，域名 nav2.xxx.com，端口用 21190 。
 
 目录建议：
 
