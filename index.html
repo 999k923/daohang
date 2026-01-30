@@ -31,20 +31,6 @@ body{
 
 a{color:inherit;text-decoration:none}
 
-/* ===== Header ===== */
-header{
-  position:sticky;top:0;z-index:10;
-  background:#fff;
-  border-bottom:1px solid var(--line);
-  padding:14px 20px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-}
-header h1{margin:0;font-size:18px}
-
 .toolbar{display:flex;gap:10px;flex-wrap:wrap}
 .btn{
   border:1px solid var(--line);
@@ -63,13 +49,14 @@ header h1{margin:0;font-size:18px}
 body.isAdmin .adminOnly{display:inline-flex}
 
 /* ===== Layout ===== */
-.wrap{max-width:1200px;margin:0 auto;padding:20px;height:calc(100vh - 110px)}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;height:100vh}
 .grid{
   display:grid;
   grid-template-columns:260px 1fr;
   gap:16px;
   height:100%;
 }
+.sidebarCollapsed .grid{grid-template-columns:56px 1fr}
 @media(max-width:900px){
   .grid{grid-template-columns:1fr}
 }
@@ -83,6 +70,51 @@ body.isAdmin .adminOnly{display:inline-flex}
 
 /* ===== Sidebar ===== */
 .sidebar{padding:12px;height:100%;overflow:auto}
+.sidebarHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+  gap:8px;
+  position:sticky;
+  top:0;
+  background:var(--panel);
+  padding:4px 0 8px;
+  z-index:2;
+}
+.sidebarHeaderTitle{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.sidebarToggleBtn{
+  border:none;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:10px;
+  width:32px;
+  height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.sidebarToggleBtn:hover{background:#f9fafb}
+.sidebarCollapsed .sidebarHeaderTitle,
+.sidebarCollapsed #catList{display:none}
+.sidebarTools{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin:8px 0 12px;
+}
+.sidebarTools .btn,
+.sidebarTools input{width:100%}
+.sidebarTools input{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--line);
+}
 .catItem{
   padding:10px;
   border-radius:12px;
@@ -112,6 +144,24 @@ body.isAdmin .adminOnly{display:inline-flex}
   transition:transform .2s ease;
   font-size:12px;
   color:var(--muted);
+}
+.catIcon{
+  width:22px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  background:#f8fafc;
+  border:1px solid var(--line);
+  font-size:14px;
+  flex:0 0 22px;
+  overflow:hidden;
+}
+.catIcon img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 .catGroup.expanded .catToggleIcon{transform:rotate(90deg)}
 .subList{
@@ -243,36 +293,31 @@ body.isAdmin .adminOnly{display:inline-flex}
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>静态导航站</h1>
-    <div style="font-size:12px;color:var(--muted)">VPS 同步：SQLite 数据库 · 管理员登录后可编辑</div>
-  </div>
-
-  <div class="toolbar">
-    <input id="searchInput" placeholder="搜索标题/描述/URL..." style="padding:8px 12px;border-radius:999px;border:1px solid var(--line);min-width:260px" />
-
-    <span id="loginBadge" style="font-size:12px;color:var(--muted);padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#fff">
-      ● <span id="loginText">游客模式</span>
-    </span>
-
-    <button class="btn" id="btnLogin">登录</button>
-    <button class="btn" id="btnLogout" style="display:none">退出</button>
-
-    <button class="btn primary adminOnly" id="btnAddTop">+ 新增一级</button>
-    <button class="btn ok adminOnly" id="btnAddSub">+ 新增二级</button>
-    <button class="btn ok adminOnly" id="btnAddSite">+ 新增网站</button>
-    <button class="btn adminOnly" id="btnExport">导出JSON</button>
-    <button class="btn adminOnly" id="btnImport">导入JSON</button>
-  </div>
-</header>
-
 <div class="wrap">
   <div class="grid">
     <aside class="sidebar">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <b style="font-size:13px;color:var(--muted)">一级分类</b>
-        <span style="font-size:12px;color:var(--muted)">同步来自数据库</span>
+      <div class="sidebarHeader">
+        <div class="sidebarHeaderTitle">
+          <b style="font-size:13px;color:var(--muted)">一级分类</b>
+          <span style="font-size:12px;color:var(--muted)">同步来自数据库</span>
+        </div>
+        <button class="sidebarToggleBtn" id="btnToggleSidebar" aria-label="折叠/展开侧边栏">☰</button>
+      </div>
+      <div class="sidebarTools">
+        <input id="searchInput" placeholder="全局搜索标题/描述/URL..." />
+
+        <span id="loginBadge" style="font-size:12px;color:var(--muted);padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#fff">
+          ● <span id="loginText">游客模式</span>
+        </span>
+
+        <button class="btn" id="btnLogin">登录</button>
+        <button class="btn" id="btnLogout" style="display:none">退出</button>
+
+        <button class="btn primary adminOnly" id="btnAddTop">+ 新增一级</button>
+        <button class="btn ok adminOnly" id="btnAddSub">+ 新增二级</button>
+        <button class="btn ok adminOnly" id="btnAddSite">+ 新增网站</button>
+        <button class="btn adminOnly" id="btnExport">导出JSON</button>
+        <button class="btn adminOnly" id="btnImport">导入JSON</button>
       </div>
       <div id="catList"></div>
     </aside>
@@ -327,6 +372,7 @@ let state = { version: 1, updatedAt: new Date().toISOString(), categories: [] };
 let activeCatId = null;
 let searchText = "";
 let activeSubcatId = null;
+let isSidebarCollapsed = false;
 const expandedCatIds = new Set();
 
 /** ==========================
@@ -368,6 +414,10 @@ function syncLoginUI(){
   loginText.textContent = isAdmin() ? "管理员已登录" : "游客模式";
 }
 
+function syncSidebarState(){
+  document.body.classList.toggle("sidebarCollapsed", isSidebarCollapsed);
+}
+
 /** URL 显示短链接（不撑高度） */
 function shortUrl(url){
   try{
@@ -398,6 +448,26 @@ function resolveIconSrc(site){
   if(manual) return manual;
   const auto = autoFaviconUrl(site.url, 64);
   return auto || placeholderIconDataUrl();
+}
+
+function getCategoryIcon(cat){
+  const raw = (cat.icon || "").trim();
+  return raw || "📁";
+}
+function createCategoryIconNode(cat){
+  const icon = getCategoryIcon(cat);
+  const wrap = document.createElement("div");
+  wrap.className = "catIcon";
+  if(/^https?:\/\//.test(icon) || icon.startsWith("data:")){
+    const img = document.createElement("img");
+    img.src = icon;
+    img.alt = "icon";
+    img.onerror = ()=>{ img.onerror=null; wrap.textContent="📁"; };
+    wrap.appendChild(img);
+  }else{
+    wrap.textContent = icon;
+  }
+  return wrap;
 }
 
 function subcatAnchorId(id){ return `subcat-${id}`; }
@@ -526,6 +596,7 @@ async function apiGetData(){
   const obj = await res.json();
   obj.categories ||= [];
   obj.categories.forEach(c=>{
+    if(typeof c.icon !== "string") c.icon = "";
     c.subcategories ||= [];
     c.subcategories.forEach(s=>{
       s.sites ||= [];
@@ -640,7 +711,9 @@ function renderSidebar(){
     const name=document.createElement("div");
     name.textContent=cat.name;
 
-    left.append(toggle, name);
+    const catIcon = createCategoryIconNode(cat);
+
+    left.append(toggle, catIcon, name);
 
     const right=document.createElement("div");
     right.style.display="flex";
@@ -738,25 +811,35 @@ function renderContent(){
   const subcats=(cat.subcategories||[]).slice().sort(byOrder);
   if(activeSubcatId && !subcats.some(sc=>sc.id===activeSubcatId)) activeSubcatId=null;
 
-  // 搜索
+  // 搜索（全局）
   if(searchText.trim()){
     const q=searchText.trim().toLowerCase();
     const matched=[];
-    subcats.forEach(sc=>{
-      const sites=(sc.sites||[]).filter(s=>{
-        return (s.title||"").toLowerCase().includes(q)
-          || (s.desc||"").toLowerCase().includes(q)
-          || (s.url||"").toLowerCase().includes(q);
-      }).sort(byOrder);
-      if(sites.length) matched.push({sc, sites});
+    const cats=[...(state.categories||[])].sort(byOrder);
+    cats.forEach(c=>{
+      const scs=(c.subcategories||[]).slice().sort(byOrder);
+      scs.forEach(sc=>{
+        const sites=(sc.sites||[]).filter(s=>{
+          return (s.title||"").toLowerCase().includes(q)
+            || (s.desc||"").toLowerCase().includes(q)
+            || (s.url||"").toLowerCase().includes(q);
+        }).sort(byOrder);
+        if(sites.length) matched.push({cat:c, sc, sites});
+      });
     });
+
+    title.textContent="搜索结果";
+    meta.textContent=`匹配 ${matched.length} 个二级分类`;
+
     if(!matched.length){
       content.innerHTML="<div style='padding:20px;color:var(--muted)'>没有搜索结果</div>";
       return;
     }
     const wrap=document.createElement("div");
     wrap.className="subcats";
-    matched.forEach(({sc, sites})=>wrap.appendChild(renderSubcatBlock(cat, sc, sites, true)));
+    matched.forEach(({cat:matchCat, sc, sites})=>{
+      wrap.appendChild(renderSubcatBlock(matchCat, sc, sites, true));
+    });
     content.innerHTML="";
     content.appendChild(wrap);
     return;
@@ -924,7 +1007,7 @@ function openLoginModal(){
   const hint = document.createElement("div");
   hint.style.fontSize="12px";
   hint.style.color="var(--muted)";
-  hint.textContent="登录成功后可编辑/保存到数据库（多设备同步）。";
+  hint.textContent="登录成功后可编辑/保存到数据库（多设备同步）";
 
   const btnCancel = button("取消","btn",closeModal);
   const btnOk = button("登录","btn primary", async ()=>{
@@ -950,17 +1033,20 @@ function openLoginModal(){
 function openCategoryModal(cat){
   if(!requireAdmin()) return;
   const isNew = !cat;
-  const data = cat ? {...cat} : { id: uid(), name:"", order: nextOrder(state.categories), subcategories: [] };
+  const data = cat ? {...cat} : { id: uid(), name:"", icon:"📁", order: nextOrder(state.categories), subcategories: [] };
 
   const name = input("名称", data.name);
+  const icon = input("图标（emoji 或图片URL）", data.icon || "📁");
   const order = input("排序（数字越小越靠前）", data.order, "number");
 
   const btnCancel = button("取消","btn",closeModal);
   const btnSave = button(isNew?"创建":"保存","btn primary", async ()=>{
     const vName=name.el.value.trim();
+    const vIcon=icon.el.value.trim();
     const vOrder=parseInt(order.el.value,10);
     if(!vName) return toast("请输入名称");
     data.name=vName;
+    data.icon=vIcon || "📁";
     data.order=Number.isFinite(vOrder)?vOrder:999;
 
     if(isNew){
@@ -980,7 +1066,7 @@ function openCategoryModal(cat){
     toast("已保存");
   });
 
-  openModal(isNew?"新增一级分类":"编辑一级分类",[row2(name.wrap, order.wrap)],[btnCancel,btnSave]);
+  openModal(isNew?"新增一级分类":"编辑一级分类",[row2(name.wrap, order.wrap), icon.wrap],[btnCancel,btnSave]);
 }
 
 /** ==========================
@@ -1181,6 +1267,7 @@ document.getElementById("btnImport").onclick=()=>{
       if(!obj || !Array.isArray(obj.categories)) throw new Error("格式错误：需要 categories 数组");
 
       obj.categories.forEach(c=>{
+        if(typeof c.icon !== "string") c.icon = "";
         c.subcategories ||= [];
         c.subcategories.forEach(s=>{
           s.sites ||= [];
@@ -1228,6 +1315,10 @@ document.getElementById("searchInput").addEventListener("input",(e)=>{
   searchText = e.target.value || "";
   renderContent();
 });
+document.getElementById("btnToggleSidebar").addEventListener("click", ()=>{
+  isSidebarCollapsed = !isSidebarCollapsed;
+  syncSidebarState();
+});
 
 /** ==========================
  *  Boot：从数据库加载
@@ -1235,6 +1326,7 @@ document.getElementById("searchInput").addEventListener("input",(e)=>{
 (async function boot(){
   document.body.classList.toggle("isAdmin", isAdmin());
   syncLoginUI();
+  syncSidebarState();
 
   try{
     state = await apiGetData();
