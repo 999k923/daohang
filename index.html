@@ -493,9 +493,148 @@ body.isAdmin .adminOnly{display:inline-flex}
   }
 }
 
+
+/* ===== Mobile v3: 2-column cards + overlay sidebar + floating toggle ===== */
+.mobileBackdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.35);
+  z-index:1990;
+  display:none;
+}
+body.mobileSidebarOpen .mobileBackdrop{ display:block; }
+
+@media (max-width: 600px){
+  /* layout: content only; sidebar overlay (no extra column) */
+  .grid{ grid-template-columns: 1fr !important; }
+  .sidebar{
+    position:fixed;
+    left:0;
+    top:0;
+    bottom:0;
+    width:min(82vw, 320px);
+    z-index:2000;
+    transform:translateX(-110%);
+    transition:transform .18s ease;
+    border-radius:0 16px 16px 0;
+    box-shadow:0 18px 45px rgba(0,0,0,.22);
+  }
+  body.mobileSidebarOpen .sidebar{ transform:translateX(0); }
+
+  /* floating toggle stays visible */
+  #btnToggleSidebar{
+    position:fixed !important;
+    right:12px;
+    top:12px;
+    z-index:3000;
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    box-shadow:0 12px 30px rgba(0,0,0,.18);
+    background:#fff;
+    border:1px solid rgba(16,24,40,.14);
+  }
+
+  /* cards: default 2 columns */
+  .cards{
+    display:grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap:8px !important;
+    padding:8px !important;
+  }
+  .card{
+    height: 84px !important;
+    min-height: 84px !important;
+    padding: 8px !important;
+  }
+  /* keep text tidy */
+  .cardTitle{-webkit-line-clamp:1}
+  .cardDesc{display:none !important;}
+}
+
+
+/* ===== Mobile v4: 顶部按钮栏（折叠态可见），展开为左侧抽屉 ===== */
+.mobileTopbar{
+  display:none;
+}
+.mobileToggleBtn{
+  border:1px solid rgba(16,24,40,.14);
+  background:#fff;
+  border-radius:14px;
+  width:44px;
+  height:44px;
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(0,0,0,.14);
+}
+
+@media (max-width: 600px){
+  .mobileTopbar{
+    display:flex;
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:56px;
+    z-index:3000;
+    align-items:center;
+    justify-content:flex-end;
+    padding:0 12px;
+    background:#fff;
+    border-bottom:1px solid rgba(16,24,40,.08);
+  }
+
+  /* 内容下移，避免被顶栏遮住 */
+  .wrap{ padding-top:56px; }
+
+  /* 侧边栏默认不占列，抽屉显示 */
+  .grid{ grid-template-columns: 1fr !important; }
+
+  .sidebar{
+    position:fixed;
+    left:0;
+    top:56px; /* 从顶栏下方开始 */
+    bottom:0;
+    width:min(82vw, 320px);
+    z-index:2000;
+    transform:translateX(-110%);
+    transition:transform .18s ease;
+    border-radius:0 16px 16px 0;
+    box-shadow:0 18px 45px rgba(0,0,0,.22);
+  }
+  body.mobileSidebarOpen .sidebar{ transform:translateX(0); }
+
+  /* 原来的侧边栏内折叠按钮（会随 transform 跑掉）在移动端隐藏 */
+  #btnToggleSidebar{ display:none !important; }
+
+  /* 背景遮罩 */
+  .mobileBackdrop{ z-index:1990; }
+
+  /* 卡片两列占满 */
+  .cards{
+    display:grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap:8px !important;
+    padding:8px !important;
+  }
+}
+
+
+@media (max-width: 600px){
+  /* 打开抽屉时强制显示一级分类区域（避免桌面折叠态影响） */
+  body.mobileSidebarOpen #catList{ display:block !important; }
+  body.mobileSidebarOpen .sidebarTools{ display:block !important; }
+  body.mobileSidebarOpen .sidebarHeader{ display:flex !important; }
+}
+
 </style>
 </head>
 <body>
+<div class="mobileBackdrop" id="mobileBackdrop"></div>
+<div class="mobileTopbar" id="mobileTopbar">
+  <button class="mobileToggleBtn" id="btnMobileToggle" aria-label="打开分类">☰</button>
+</div>
 <div class="wrap">
   <div class="grid">
     <aside class="sidebar">
@@ -1528,11 +1667,16 @@ document.getElementById("searchInput").addEventListener("input",(e)=>{
   searchText = e.target.value || "";
   renderContent();
 });
-document.getElementById("btnToggleSidebar").addEventListener("click", ()=>{
-  isSidebarCollapsed = !isSidebarCollapsed;
-  syncSidebarState();
-});
 
+document.getElementById("btnToggleSidebar").addEventListener("click", ()=>{ isSidebarCollapsed = !isSidebarCollapsed; syncSidebarState(); });
+const mobileBackdropEl = document.getElementById("mobileBackdrop");
+if(mobileBackdropEl){
+  mobileBackdropEl.addEventListener("click", ()=>document.body.classList.remove("mobileSidebarOpen"));
+}
+window.addEventListener("resize", ()=>{
+  const isMobile = window.matchMedia && window.matchMedia("(max-width: 600px)").matches;
+  if(!isMobile) document.body.classList.remove("mobileSidebarOpen");
+});
 /** ==========================
  *  Boot：从数据库加载
  * ========================== */
@@ -1557,6 +1701,31 @@ document.getElementById("btnToggleSidebar").addEventListener("click", ()=>{
   activeCatId = state.categories?.[0]?.id || null;
   render();
 })();
+
+// ===== Mobile topbar toggle (修复：按钮点击无法展开抽屉) =====
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btn = document.getElementById("btnMobileToggle");
+  const backdrop = document.getElementById("mobileBackdrop");
+  function isMobile(){ return window.matchMedia && window.matchMedia("(max-width: 600px)").matches; }
+
+  function closeDrawer(){
+    document.body.classList.remove("mobileSidebarOpen");
+  }
+  function toggleDrawer(){
+    if(!isMobile()) return;
+    // 移动端抽屉不使用桌面端折叠态，防止把一级分类隐藏掉
+    document.body.classList.remove("sidebarCollapsed");
+    document.body.classList.toggle("mobileSidebarOpen");
+  }
+
+  if(btn) btn.addEventListener("click", toggleDrawer);
+  if(backdrop) backdrop.addEventListener("click", closeDrawer);
+
+  window.addEventListener("resize", ()=>{
+    if(!isMobile()) closeDrawer();
+  });
+});
+
 </script>
 </body>
 </html>
