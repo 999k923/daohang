@@ -32,7 +32,7 @@ ADMIN_USER=admin
 ADMIN_PASS=你要的新密码（建议改）
 
 SQLite 会写入挂载目录：/opt/nav2/nav-data/data.sqlite
-## 3）1Panel 创建 Docker 编排（nav2-api）
+## 3）1Panel 创建 Docker 编排（nav2-api）账号密码自己修改
 ```bash
 version: "3.8"
 services:
@@ -46,7 +46,7 @@ services:
       PORT: "21190"
       DB_PATH: "/data/data.sqlite"
       ADMIN_USER: "admin"
-      ADMIN_PASS: "xiao123456"
+      ADMIN_PASS: "admin123456"
       TOKEN_TTL_HOURS: "168"
     command: sh -c "npm i && node server.js"
     restart: unless-stopped
