@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>静态导航站</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --panel:#fff; --panel2:#fbfcff;
+      --text:#101828; --muted:#667085; --line:rgba(16,24,40,.12);
+      --primary:#2563eb; --danger:#ef4444; --ok:#10b981;
+      --shadow:0 10px 30px rgba(16,24,40,.12); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background: radial-gradient(1000px 500px at 15% 0%, rgba(37,99,235,.08), transparent 55%),
+                  radial-gradient(800px 420px at 90% 15%, rgba(16,185,129,.08), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    header{
+      position:sticky;top:0;z-index:20;
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+      padding:14px 22px;
+      background:rgba(255,255,255,.9);backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--line);
+    }
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:36px;height:36px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#10b981);box-shadow:var(--shadow)}
+    .title{display:flex;flex-direction:column;line-height:1.1}
+    .title b{font-size:16px}
+    .title span{font-size:12px;color:var(--muted)}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+    .search{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px;min-width:260px}
+    .search input{width:100%;border:none;outline:none;background:transparent;font-size:14px}
+
+    .btn{border:none;cursor:pointer;border-radius:999px;padding:9px 12px;background:#fff;border:1px solid var(--line);display:inline-flex;gap:8px;align-items:center;font-size:13px;transition:.15s}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.28)}
+    .btn.ok{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.28)}
+    .btn.danger{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.28)}
+    .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+
+    .adminOnly{display:none !important;}
+    body.isAdmin .adminOnly{display:inline-flex !important;}
+
+    .loginPill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--muted);font-size:12px}
+    .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}
+    body.isAdmin .dot{background:var(--ok)}
+
+    .wrap{max-width:1200px;margin:0 auto;padding:22px}
+    .grid{display:grid;grid-template-columns:260px 1fr;gap:16px;margin-top:16px}
+    @media (max-width: 980px){.grid{grid-template-columns:1fr}.search{min-width:180px}header{position:relative}}
+
+    .sidebar,.panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .sidebar{padding:12px;max-height: calc(100vh - 110px);position:sticky;top:92px;overflow:auto}
+    @media (max-width:980px){.sidebar{position:relative;top:auto;max-height:none}}
+    .sideTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .sideTop h3{margin:0;font-size:14px;color:var(--muted);font-weight:600}
+
+    .catItem{padding:10px 10px;border-radius:14px;border:1px solid transparent;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;background:rgba(16,24,40,.02);margin-bottom:6px}
+    .catItem:hover{border-color:rgba(16,24,40,.10);background:rgba(16,24,40,.04)}
+    .catItem.active{border-color:rgba(37,99,235,.35);background:rgba(37,99,235,.07)}
+    .mini{display:flex;gap:6px}
+    .iconBtn{width:30px;height:30px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+    .iconBtn:hover{background:#fff}
+
+    .panel{padding:14px}
+    .panelHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .panelHead h2{margin:0;font-size:16px}
+    .muted{color:var(--muted);font-size:12px}
+
+    .subcats{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+    .subcat{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);overflow:hidden}
+    .subHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:linear-gradient(to right, rgba(16,24,40,.03), transparent);border-bottom:1px solid var(--line)}
+    .subHead b{font-size:14px}
+    .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px}
+    @media (max-width:980px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:620px){.cards{grid-template-columns:1fr}}
+
+    .card{border:1px solid var(--line);background:#fff;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:.15s}
+    .card:hover{transform:translateY(-2px);border-color:rgba(37,99,235,.25)}
+    .cardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .infoRow{display:flex;gap:10px;align-items:center;min-width:0}
+    .siteIcon{width:34px;height:34px;border-radius:14px;border:1px solid rgba(16,24,40,.10);background:rgba(16,24,40,.03);flex:0 0 auto}
+    .cardTitle{font-weight:700;font-size:14px}
+    .cardUrl{color:var(--muted);font-size:12px;word-break:break-all}
+    .cardDesc{color:rgba(16,24,40,.82);font-size:12px;line-height:1.4;min-height:32px}
+
+    .empty{padding:26px;border:1px dashed rgba(16,24,40,.20);border-radius:var(--radius);color:var(--muted);text-align:center;background:#fff}
+
+    .modalMask{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;align-items:center;justify-content:center;z-index:999;padding:18px}
+    .modal{width:min(720px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+    .modalHead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .modalHead b{font-size:14px}
+    .modalBody{padding:14px;display:flex;flex-direction:column;gap:10px}
+    .modalFoot{padding:12px 14px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+
+    .row{display:flex;gap:10px}
+    .row>div{flex:1}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, textarea{width:100%;padding:10px;border-radius:14px;border:1px solid var(--line);outline:none;font-size:13px}
+    textarea{min-height:88px;resize:vertical}
+    .help{font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px}
+    .uploadBox{border:1px dashed rgba(16,24,40,.20);border-radius:16px;padding:10px;background:rgba(16,24,40,.02)}
+    .previewRow{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+    .previewRow img{width:42px;height:42px;border-radius:16px;border:1px solid rgba(16,24,40,.10);background:rgba(16,24,40,.03)}
+    .smallBtn{border:none;cursor:pointer;border-radius:999px;padding:8px 10px;background:#fff;border:1px solid var(--line);font-size:12px}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111827;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:10px 14px;color:#fff;display:none;box-shadow:var(--shadow);font-size:13px;z-index:9999}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">
+        <b>静态导航站</b>
+        <span>VPS 同步：SQLite 数据库 · 管理员登录后可编辑</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">
+        🔎 <input id="searchInput" placeholder="搜索标题/描述/URL..." />
+      </div>
+
+      <span class="loginPill" id="loginState">
+        <span class="dot"></span>
+        <span id="loginText">游客模式</span>
+      </span>
+
+      <button class="btn" id="btnLogin">🔐 登录</button>
+      <button class="btn" id="btnLogout" style="display:none">🚪 退出</button>
+
+      <button class="btn primary adminOnly" id="btnAddTop">➕ 新增一级</button>
+      <button class="btn ok adminOnly" id="btnAddSub">➕ 新增二级</button>
+      <button class="btn ok adminOnly" id="btnAddSite">➕ 新增网站</button>
+      <button class="btn adminOnly" id="btnExport">⬇️ 导出JSON</button>
+      <button class="btn adminOnly" id="btnImport">⬆️ 导入JSON</button>
+      <button class="btn danger adminOnly" id="btnReset">♻️ 重置示例</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <aside class="sidebar">
+        <div class="sideTop">
+          <h3>一级分类</h3>
+          <span class="muted">同步来自数据库</span>
+        </div>
+        <div id="catList"></div>
+      </aside>
+
+      <main class="panel">
+        <div class="panelHead">
+          <div>
+            <h2 id="activeTitle">-</h2>
+            <div class="muted" id="activeMeta">-</div>
+          </div>
+        </div>
+        <div id="content"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modalMask" id="modalMask">
+    <div class="modal">
+      <div class="modalHead">
+        <b id="modalTitle">编辑</b>
+        <button class="iconBtn" id="modalClose" title="关闭">✖</button>
+      </div>
+      <div class="modalBody" id="modalBody"></div>
+      <div class="modalFoot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/** Part 2 在下一条继续 **/
+/** ==========================
+ *  API 配置（同域反代 /api）
+ * ========================== */
+const API_DATA_URL = "/api/data";
+const API_LOGIN_URL = "/api/login";
+const API_LOGOUT_URL = "/api/logout";
+const TOKEN_KEY = "navsite_api_token_v1";
+
+const LOCAL_CACHE_KEY = "navsite_local_cache_v1"; // 可选：API挂了时回退
+
+/** ==========================
+ *  State
+ * ========================== */
+let state = { version: 1, updatedAt: new Date().toISOString(), categories: [] };
+let activeCatId = null;
+let searchText = "";
+
+/** ==========================
+ *  管理员 token（sessionStorage）
+ * ========================== */
+function getToken(){ return sessionStorage.getItem(TOKEN_KEY) || ""; }
+function isAdmin(){ return !!getToken(); }
+function setAdminToken(token){
+  if(token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
+  document.body.classList.toggle("isAdmin", !!token);
+  syncLoginUI();
+  render();
+}
+function syncLoginUI(){
+  const btnLogin = document.getElementById("btnLogin");
+  const btnLogout = document.getElementById("btnLogout");
+  const loginText = document.getElementById("loginText");
+  const is = isAdmin();
+  btnLogin.style.display = is ? "none" : "inline-flex";
+  btnLogout.style.display = is ? "inline-flex" : "none";
+  loginText.textContent = is ? "管理员已登录" : "游客模式";
+}
+
+/** ==========================
+ *  工具
+ * ========================== */
+function uid(){
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+function byOrder(a,b){ return (a.order ?? 0) - (b.order ?? 0); }
+function nextOrder(arr){
+  const max = (arr||[]).reduce((m,x)=>Math.max(m, Number(x.order)||0), 0);
+  return max + 1;
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=> t.style.display="none", 1700);
+}
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[m]));
+}
+function fmtTime(iso){
+  try{
+    const d = new Date(iso);
+    const p = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }catch{return iso}
+}
+
+/** ==========================
+ *  Icon：自动favicon / 手动base64或URL
+ * ========================== */
+function getDomainFromUrl(u){ try { return new URL(u).hostname; } catch { return ""; } }
+function autoFaviconUrl(siteUrl, size=64){
+  const domain = getDomainFromUrl(siteUrl);
+  if(!domain) return "";
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
+}
+function placeholderIconDataUrl(){
+  return "data:image/svg+xml;base64," + btoa(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>
+      <rect width='64' height='64' rx='18' fill='rgba(16,24,40,.05)'/>
+      <path d='M22 32h20' stroke='rgba(16,24,40,.35)' stroke-width='4' stroke-linecap='round'/>
+    </svg>`
+  );
+}
+function resolveIconSrc(site){
+  const manual = (site.icon || "").trim();
+  if(manual) return manual;
+  const auto = autoFaviconUrl(site.url, 64);
+  return auto || placeholderIconDataUrl();
+}
+
+/** ==========================
+ *  Modal UI
+ * ========================== */
+const modalMask = document.getElementById("modalMask");
+const modalBody = document.getElementById("modalBody");
+const modalFoot = document.getElementById("modalFoot");
+const modalTitle = document.getElementById("modalTitle");
+document.getElementById("modalClose").onclick = closeModal;
+modalMask.addEventListener("click", (e)=>{ if(e.target===modalMask) closeModal(); });
+
+function openModal(title, bodyNodes, footNodes){
+  modalTitle.textContent = title;
+  modalBody.innerHTML = "";
+  modalFoot.innerHTML = "";
+  bodyNodes.forEach(n=> modalBody.appendChild(n));
+  footNodes.forEach(n=> modalFoot.appendChild(n));
+  modalMask.style.display="flex";
+}
+function closeModal(){ modalMask.style.display="none"; }
+
+function button(text, cls, onClick){
+  const b = document.createElement("button");
+  b.className = cls;
+  b.textContent = text;
+  b.onclick = onClick;
+  return b;
+}
+function input(labelText, value="", type="text"){
+  const wrap = document.createElement("div");
+  const lab = document.createElement("label");
+  lab.textContent = labelText;
+  const el = document.createElement("input");
+  el.type = type;
+  el.value = value ?? "";
+  // 防止浏览器自动填充“记住密码”
+  el.autocomplete = "off";
+  el.spellcheck = false;
+  wrap.append(lab, el);
+  return {wrap, el};
+}
+function textarea(labelText, value=""){
+  const wrap = document.createElement("div");
+  const lab = document.createElement("label");
+  lab.textContent = labelText;
+  const el = document.createElement("textarea");
+  el.value = value ?? "";
+  wrap.append(lab, el);
+  return {wrap, el};
+}
+function row2(a,b){
+  const r = document.createElement("div");
+  r.className="row";
+  r.append(a,b);
+  return r;
+}
+
+/** ==========================
+ *  API 调用
+ * ========================== */
+async function apiGetData(){
+  const res = await fetch(API_DATA_URL, { cache:"no-store" });
+  if(!res.ok) throw new Error("GET /api/data failed: " + res.status);
+  const obj = await res.json();
+  // 补全
+  obj.categories ||= [];
+  obj.categories.forEach(c=>{
+    c.subcategories ||= [];
+    c.subcategories.forEach(s=>{
+      s.sites ||= [];
+      s.sites.forEach(site=>{ if(typeof site.icon !== "string") site.icon=""; });
+    });
+  });
+  return obj;
+}
+
+async function apiLogin(username, password){
+  const res = await fetch(API_LOGIN_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if(!res.ok) throw new Error("login failed");
+  return await res.json(); // {token, expiresAt}
+}
+
+async function apiLogout(){
+  const token = getToken();
+  if(!token) return;
+  try{
+    await fetch(API_LOGOUT_URL, {
+      method:"POST",
+      headers:{ "Authorization":"Bearer " + token }
+    });
+  }catch{}
+}
+
+async function apiSaveData(){
+  // 只有管理员才写库
+  if(!isAdmin()) return;
+  const token = getToken();
+  const res = await fetch(API_DATA_URL, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer " + token
+    },
+    body: JSON.stringify(state)
+  });
+  if(!res.ok){
+    if(res.status===401){
+      toast("保存失败：登录已过期，请重新登录");
+      setAdminToken("");
+      return;
+    }
+    toast("保存到数据库失败：" + res.status);
+    return;
+  }
+  const out = await res.json();
+  if(out?.updatedAt) state.updatedAt = out.updatedAt;
+}
+
+function saveLocalCache(){
+  try{ localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(state)); }catch{}
+}
+function loadLocalCache(){
+  try{
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || !Array.isArray(obj.categories)) return null;
+    return obj;
+  }catch{ return null; }
+}
+
+/** 统一保存：本地缓存 + 写入数据库 */
+async function saveAll(){
+  saveLocalCache();
+  await apiSaveData();
+}
+
+/** ==========================
+ *  权限守卫
+ * ========================== */
+function requireAdmin(){
+  if(!isAdmin()){
+    toast("需要管理员登录");
+    openLoginModal();
+    return false;
+  }
+  return true;
+}
+
+/** ==========================
+ *  登录弹窗
+ * ========================== */
+function openLoginModal(){
+  const u = input("账号", "");
+  const p = input("密码", "", "password");
+  u.el.autocomplete = "username";
+  p.el.autocomplete = "current-password";
+
+  const hint = document.createElement("div");
+  hint.className = "help";
+  hint.textContent = "登录成功后会获得 token（存在浏览器会话中）。";
+
+  const btnCancel = button("取消", "btn", closeModal);
+  const btnLogin = button("登录", "btn primary", async ()=>{
+    const user = u.el.value.trim();
+    const pass = p.el.value;
+    if(!user || !pass) return toast("请输入账号密码");
+    try{
+      const out = await apiLogin(user, pass);
+      setAdminToken(out.token);
+      closeModal();
+      toast("登录成功");
+    }catch{
+      toast("账号或密码错误");
+    }
+  });
+
+  openModal("管理员登录", [u.wrap, p.wrap, hint], [btnCancel, btnLogin]);
+}
+
+/** ==========================
+ *  渲染
+ * ========================== */
+function getActiveCat(){
+  return state.categories.find(c=>c.id===activeCatId) || state.categories[0] || null;
+}
+
+function render(){
+  renderSidebar();
+  renderContent();
+}
+
+function renderSidebar(){
+  const list = document.getElementById("catList");
+  list.innerHTML = "";
+  const cats = [...(state.categories||[])].sort(byOrder);
+
+  if(!activeCatId && cats[0]) activeCatId = cats[0].id;
+
+  cats.forEach(cat=>{
+    const item = document.createElement("div");
+    item.className = "catItem" + (cat.id===activeCatId ? " active":"");
+    item.onclick = ()=>{ activeCatId = cat.id; render(); };
+
+    const left = document.createElement("div");
+    left.textContent = cat.name;
+
+    const right = document.createElement("div");
+    right.className="mini";
+
+    const btnEdit = document.createElement("button");
+    btnEdit.className="iconBtn adminOnly";
+    btnEdit.textContent="✎";
+    btnEdit.title="编辑一级分类";
+    btnEdit.onclick = (e)=>{ e.stopPropagation(); openCategoryModal(cat); };
+
+    const btnDel = document.createElement("button");
+    btnDel.className="iconBtn adminOnly";
+    btnDel.textContent="🗑";
+    btnDel.title="删除一级分类";
+    btnDel.onclick = async (e)=>{
+      e.stopPropagation();
+      if(!requireAdmin()) return;
+      if(confirm(`确定删除一级分类「${cat.name}」？将删除其所有二级分类和网站。`)){
+        state.categories = state.categories.filter(c=>c.id!==cat.id);
+        if(activeCatId===cat.id) activeCatId = state.categories[0]?.id || null;
+        await saveAll();
+        render();
+        toast("已删除");
+      }
+    };
+
+    right.append(btnEdit, btnDel);
+    item.append(left, right);
+    list.appendChild(item);
+  });
+}
+
+function renderContent(){
+  const active = getActiveCat();
+  const content = document.getElementById("content");
+  const title = document.getElementById("activeTitle");
+  const meta = document.getElementById("activeMeta");
+
+  if(!active){
+    title.textContent = "没有分类";
+    meta.textContent = "请管理员登录后新增一级分类";
+    content.innerHTML = `<div class="empty">请点击右上角「登录」→ 进入管理员模式后新增内容</div>`;
+    return;
+  }
+
+  title.textContent = active.name;
+  meta.textContent = `二级分类：${active.subcategories?.length || 0} · 最近更新：${fmtTime(state.updatedAt)}`;
+
+  const subcats = (active.subcategories || []).slice().sort(byOrder);
+
+  // 搜索模式
+  if(searchText.trim()){
+    const q = searchText.trim().toLowerCase();
+    const matched = [];
+    subcats.forEach(sc=>{
+      const sites = (sc.sites||[]).filter(s=>{
+        return (s.title||"").toLowerCase().includes(q)
+          || (s.desc||"").toLowerCase().includes(q)
+          || (s.url||"").toLowerCase().includes(q);
+      }).sort(byOrder);
+      if(sites.length) matched.push({ sc, sites });
+    });
+
+    if(!matched.length){
+      content.innerHTML = `<div class="empty">没有匹配「${escapeHtml(searchText)}」的结果</div>`;
+      return;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className="subcats";
+    matched.forEach(({sc, sites})=>{
+      wrap.appendChild(renderSubcatBlock(active, sc, sites, true));
+    });
+    content.innerHTML = "";
+    content.appendChild(wrap);
+    return;
+  }
+
+  if(!subcats.length){
+    content.innerHTML = `<div class="empty">这个一级分类下还没有二级分类。管理员登录后可新增。</div>`;
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className="subcats";
+  subcats.forEach(sc=>{
+    const sites = (sc.sites||[]).slice().sort(byOrder);
+    wrap.appendChild(renderSubcatBlock(active, sc, sites, false));
+  });
+  content.innerHTML = "";
+  content.appendChild(wrap);
+}
+
+function renderSubcatBlock(cat, subcat, sites, searchMode){
+  const box = document.createElement("div");
+  box.className="subcat";
+
+  const head = document.createElement("div");
+  head.className="subHead";
+
+  const left = document.createElement("div");
+  left.innerHTML = `<b>${escapeHtml(subcat.name)}</b> <span class="muted">（网站 ${sites.length}）</span>`;
+
+  const right = document.createElement("div");
+  right.style.display="flex";
+  right.style.gap="8px";
+  right.style.flexWrap="wrap";
+
+  const btnAdd = document.createElement("button");
+  btnAdd.className="btn ok adminOnly";
+  btnAdd.textContent = "新增网站";
+  btnAdd.onclick = ()=>{ if(requireAdmin()) openSiteModal(cat, subcat, null); };
+
+  const btnEdit = document.createElement("button");
+  btnEdit.className="btn adminOnly";
+  btnEdit.textContent = "编辑二级";
+  btnEdit.onclick = ()=>{ if(requireAdmin()) openSubcategoryModal(cat, subcat); };
+
+  const btnDel = document.createElement("button");
+  btnDel.className="btn danger adminOnly";
+  btnDel.textContent = "删除二级";
+  btnDel.onclick = async ()=>{
+    if(!requireAdmin()) return;
+    if(confirm(`确定删除二级分类「${subcat.name}」？将删除其所有网站。`)){
+      cat.subcategories = cat.subcategories.filter(s=>s.id!==subcat.id);
+      await saveAll();
+      render();
+      toast("已删除");
+    }
+  };
+
+  if(!searchMode) right.append(btnAdd);
+  right.append(btnEdit, btnDel);
+
+  head.append(left, right);
+
+  const cards = document.createElement("div");
+  cards.className="cards";
+
+  if(!sites.length){
+    const empty = document.createElement("div");
+    empty.className="empty";
+    empty.style.gridColumn="1 / -1";
+    empty.textContent = isAdmin() ? "这里还没有网站。点击「新增网站」添加。" : "这里还没有网站（管理员登录后可添加）。";
+    cards.appendChild(empty);
+  }else{
+    sites.forEach(site=>{
+      cards.appendChild(renderSiteCard(cat, subcat, site));
+    });
+  }
+
+  box.append(head, cards);
+  return box;
+}
+
+function renderSiteCard(cat, subcat, site){
+  const card = document.createElement("div");
+  card.className="card";
+
+  const top = document.createElement("div");
+  top.className="cardTop";
+
+  const infoRow = document.createElement("div");
+  infoRow.className="infoRow";
+
+  const iconImg = document.createElement("img");
+  iconImg.className="siteIcon";
+  iconImg.alt = "icon";
+  iconImg.loading = "lazy";
+  iconImg.decoding = "async";
+  iconImg.src = resolveIconSrc(site);
+  iconImg.onerror = ()=>{ iconImg.onerror=null; iconImg.src = placeholderIconDataUrl(); };
+
+  const info = document.createElement("div");
+  info.style.minWidth="0";
+
+  const t = document.createElement("div");
+  t.className="cardTitle";
+  t.textContent = site.title || "(未命名)";
+
+  const u = document.createElement("a");
+  u.className="cardUrl";
+  u.href = site.url || "#";
+  u.target = "_blank";
+  u.rel = "noopener noreferrer";
+  u.textContent = site.url || "(无URL)";
+
+  info.append(t, u);
+  infoRow.append(iconImg, info);
+
+  const actions = document.createElement("div");
+  actions.style.display="flex";
+  actions.style.gap="6px";
+
+  const btnGo = document.createElement("button");
+  btnGo.className="iconBtn";
+  btnGo.title="打开";
+  btnGo.textContent="↗";
+  btnGo.onclick = ()=>{ site.url ? window.open(site.url, "_blank", "noopener,noreferrer") : toast("没有URL"); };
+
+  const btnEdit = document.createElement("button");
+  btnEdit.className="iconBtn adminOnly";
+  btnEdit.title="编辑";
+  btnEdit.textContent="✎";
+  btnEdit.onclick = ()=>{ if(requireAdmin()) openSiteModal(cat, subcat, site); };
+
+  const btnDel = document.createElement("button");
+  btnDel.className="iconBtn adminOnly";
+  btnDel.title="删除";
+  btnDel.textContent="🗑";
+  btnDel.onclick = async ()=>{
+    if(!requireAdmin()) return;
+    if(confirm(`确定删除网站「${site.title}」？`)){
+      subcat.sites = (subcat.sites||[]).filter(s=>s.id!==site.id);
+      await saveAll();
+      render();
+      toast("已删除");
+    }
+  };
+
+  actions.append(btnGo, btnEdit, btnDel);
+  top.append(infoRow, actions);
+
+  const desc = document.createElement("div");
+  desc.className="cardDesc";
+  desc.textContent = site.desc || "";
+
+  card.append(top, desc);
+  return card;
+}
+
+/** Part 3 在下一条继续：CRUD表单 + 上传base64 + 顶部按钮绑定 + boot **/
+/** ==========================
+ *  CRUD：一级分类
+ * ========================== */
+function openCategoryModal(cat){
+  if(!requireAdmin()) return;
+
+  const isNew = !cat;
+  const data = cat ? {...cat} : { id: uid(), name:"", order: nextOrder(state.categories), subcategories: [] };
+
+  const name = input("名称", data.name);
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+
+  const btnCancel = button("取消", "btn", closeModal);
+  const btnSave = button(isNew ? "创建" : "保存", "btn primary", async ()=>{
+    const vName = name.el.value.trim();
+    const vOrder = parseInt(order.el.value,10);
+    if(!vName) return toast("请输入名称");
+    data.name = vName;
+    data.order = Number.isFinite(vOrder) ? vOrder : 999;
+
+    if(isNew){
+      state.categories.push(data);
+      activeCatId = data.id;
+    }else{
+      const idx = state.categories.findIndex(c=>c.id===data.id);
+      if(idx>=0){
+        data.subcategories = state.categories[idx].subcategories || [];
+        state.categories[idx] = data;
+      }
+    }
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew ? "新增一级分类" : "编辑一级分类", [row2(name.wrap, order.wrap)], [btnCancel, btnSave]);
+}
+
+/** ==========================
+ *  CRUD：二级分类
+ * ========================== */
+function openSubcategoryModal(cat, subcat){
+  if(!requireAdmin()) return;
+
+  const isNew = !subcat;
+  const data = subcat ? {...subcat} : { id: uid(), name:"", order: nextOrder(cat.subcategories||[]), sites: [] };
+
+  const name = input("名称", data.name);
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+
+  const btnCancel = button("取消", "btn", closeModal);
+  const btnSave = button(isNew ? "创建" : "保存", "btn primary", async ()=>{
+    const vName = name.el.value.trim();
+    const vOrder = parseInt(order.el.value,10);
+    if(!vName) return toast("请输入名称");
+    data.name = vName;
+    data.order = Number.isFinite(vOrder) ? vOrder : 999;
+
+    cat.subcategories = cat.subcategories || [];
+    if(isNew){
+      cat.subcategories.push(data);
+    }else{
+      const idx = cat.subcategories.findIndex(s=>s.id===data.id);
+      if(idx>=0){
+        data.sites = cat.subcategories[idx].sites || [];
+        cat.subcategories[idx] = data;
+      }
+    }
+
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew ? "新增二级分类" : "编辑二级分类", [row2(name.wrap, order.wrap)], [btnCancel, btnSave]);
+}
+
+/** ==========================
+ *  CRUD：网站（含 icon 上传 base64）
+ * ========================== */
+function openSiteModal(cat, subcat, site){
+  if(!requireAdmin()) return;
+
+  const isNew = !site;
+  const data = site ? {...site} : { id: uid(), title:"", url:"", desc:"", icon:"", order: nextOrder(subcat.sites||[]) };
+
+  const title = input("标题", data.title);
+  const url = input("URL", data.url, "url");
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+  const iconUrl = input("Icon（可选：粘贴图片URL或base64；为空则自动favicon）", data.icon || "");
+  const desc = textarea("描述", data.desc);
+
+  // 上传 -> base64
+  const uploadWrap = document.createElement("div");
+  uploadWrap.className = "uploadBox";
+
+  const uploadLab = document.createElement("label");
+  uploadLab.textContent = "上传Icon（可选：转base64保存）";
+
+  const upload = document.createElement("input");
+  upload.type = "file";
+  upload.accept = "image/*";
+  upload.autocomplete = "off";
+
+  const help = document.createElement("div");
+  help.className = "help";
+  help.innerHTML = `
+    优先级：<b>手动Icon</b>（URL/base64）＞<b>自动favicon</b>。<br>
+    base64 会占用存储/带宽，建议小图（例如 64×64 / 128×128，尽量 &lt; 200KB）。
+  `;
+
+  const previewRow = document.createElement("div");
+  previewRow.className = "previewRow";
+
+  const previewImg = document.createElement("img");
+  previewImg.alt = "preview";
+
+  const btnClearIcon = document.createElement("button");
+  btnClearIcon.className = "smallBtn";
+  btnClearIcon.textContent = "清空手动Icon（改用自动favicon）";
+  btnClearIcon.onclick = ()=>{
+    iconUrl.el.value = "";
+    refreshPreview();
+    toast("已清空");
+  };
+
+  previewRow.append(previewImg, btnClearIcon);
+
+  function refreshPreview(){
+    const manual = iconUrl.el.value.trim();
+    if(manual){
+      previewImg.src = manual;
+      previewImg.onerror = ()=>{ previewImg.onerror=null; previewImg.src = placeholderIconDataUrl(); };
+      return;
+    }
+    const auto = autoFaviconUrl(url.el.value.trim(), 64);
+    previewImg.src = auto || placeholderIconDataUrl();
+    previewImg.onerror = ()=>{ previewImg.onerror=null; previewImg.src = placeholderIconDataUrl(); };
+  }
+
+  iconUrl.el.addEventListener("input", refreshPreview);
+  url.el.addEventListener("input", refreshPreview);
+
+  upload.onchange = async ()=>{
+    const file = upload.files?.[0];
+    if(!file) return;
+
+    if(file.size > 300 * 1024){
+      if(!confirm("图片较大，转base64会更慢且占空间。建议小于300KB。仍继续？")) return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      iconUrl.el.value = String(reader.result || "");
+      refreshPreview();
+      toast("已转base64并填入Icon字段");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  uploadWrap.append(uploadLab, upload, help, previewRow);
+  refreshPreview();
+
+  const btnCancel = button("取消", "btn", closeModal);
+  const btnSave = button(isNew ? "创建" : "保存", "btn primary", async ()=>{
+    const vTitle = title.el.value.trim();
+    const vUrl = url.el.value.trim();
+    const vOrder = parseInt(order.el.value,10);
+    if(!vTitle) return toast("请输入标题");
+    if(!vUrl) return toast("请输入URL");
+
+    data.title = vTitle;
+    data.url = vUrl;
+    data.order = Number.isFinite(vOrder) ? vOrder : 999;
+    data.desc = desc.el.value.trim();
+    data.icon = iconUrl.el.value.trim(); // 可空
+
+    subcat.sites = subcat.sites || [];
+    if(isNew){
+      subcat.sites.push(data);
+    }else{
+      const idx = subcat.sites.findIndex(s=>s.id===data.id);
+      if(idx>=0) subcat.sites[idx] = data;
+    }
+
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew ? "新增网站" : "编辑网站",
+    [
+      row2(title.wrap, order.wrap),
+      url.wrap,
+      iconUrl.wrap,
+      uploadWrap,
+      desc.wrap
+    ],
+    [btnCancel, btnSave]
+  );
+}
+
+/** ==========================
+ *  顶部按钮绑定
+ * ========================== */
+document.getElementById("btnLogin").onclick = ()=> openLoginModal();
+
+document.getElementById("btnLogout").onclick = async ()=>{
+  await apiLogout();
+  setAdminToken("");
+  toast("已退出");
+};
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{
+  searchText = e.target.value || "";
+  renderContent();
+});
+
+document.getElementById("btnAddTop").onclick = ()=> openCategoryModal(null);
+
+document.getElementById("btnAddSub").onclick = ()=>{
+  if(!requireAdmin()) return;
+  const cat = getActiveCat();
+  if(!cat) return toast("请先创建一级分类");
+  openSubcategoryModal(cat, null);
+};
+
+document.getElementById("btnAddSite").onclick = ()=>{
+  if(!requireAdmin()) return;
+  const cat = getActiveCat();
+  if(!cat) return toast("请先创建一级分类");
+  const subcats = (cat.subcategories||[]).slice().sort(byOrder);
+  if(!subcats.length) return toast("请先创建二级分类");
+  openSiteModal(cat, subcats[0], null);
+};
+
+document.getElementById("btnExport").onclick = ()=>{
+  if(!requireAdmin()) return;
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `nav_export_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("已导出");
+};
+
+document.getElementById("btnImport").onclick = ()=>{
+  if(!requireAdmin()) return;
+  const inp = document.createElement("input");
+  inp.type="file";
+  inp.accept="application/json";
+  inp.onchange = async ()=>{
+    const f = inp.files?.[0];
+    if(!f) return;
+    try{
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      if(!obj || !Array.isArray(obj.categories)) throw new Error("格式不正确：需要 categories 数组");
+
+      // 补全字段
+      obj.categories.forEach(c=>{
+        c.subcategories ||= [];
+        c.subcategories.forEach(s=>{
+          s.sites ||= [];
+          s.sites.forEach(site=>{ if(typeof site.icon !== "string") site.icon = ""; });
+        });
+      });
+
+      state = obj;
+      activeCatId = state.categories[0]?.id || null;
+      await saveAll();
+      render();
+      toast("已导入并同步到数据库");
+    }catch(err){
+      alert("导入失败：" + (err?.message || err));
+    }
+  };
+  inp.click();
+};
+
+document.getElementById("btnReset").onclick = async ()=>{
+  if(!requireAdmin()) return;
+
+  const sample = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    categories: [
+      {
+        id: uid(), name: "常用", order: 1,
+        subcategories: [
+          {
+            id: uid(), name: "开发", order: 1,
+            sites: [
+              { id: uid(), title: "GitHub", url: "https://github.com", desc: "代码托管", icon: "", order: 1 },
+              { id: uid(), title: "MDN", url: "https://developer.mozilla.org", desc: "Web 文档", icon: "", order: 2 }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  if(confirm("确定重置为示例数据？将覆盖数据库中的数据。")){
+    state = sample;
+    activeCatId = state.categories[0]?.id || null;
+    await saveAll();
+    render();
+    toast("已重置并同步到数据库");
+  }
+};
+
+/** ==========================
+ *  启动 boot：从数据库加载
+ * ========================== */
+(async function boot(){
+  document.body.classList.toggle("isAdmin", isAdmin());
+  syncLoginUI();
+
+  try{
+    state = await apiGetData();
+    saveLocalCache();
+  }catch(e){
+    const local = loadLocalCache();
+    if(local){
+      state = local;
+      toast("API读取失败：已回退本地缓存");
+    }else{
+      toast("API读取失败：暂无可用数据");
+    }
+  }
+
+  activeCatId = state.categories?.[0]?.id || null;
+  render();
+})();
+</script>
+</body>
+</html>
