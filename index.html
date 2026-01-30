@@ -779,6 +779,350 @@ function renderSiteCard(cat, subcat, site){
 }
 
 /** Part 3 将包含：登录弹窗 + 完整 CRUD + 上传 icon(base64) + 导入导出 + boot 初始化 **/
+<script>
+/** ==========================
+ *  登录弹窗
+ * ========================== */
+function openLoginModal(){
+  const u = input("账号", "");
+  const p = input("密码", "", "password");
+  u.el.autocomplete = "username";
+  p.el.autocomplete = "current-password";
+
+  const hint = document.createElement("div");
+  hint.style.fontSize="12px";
+  hint.style.color="var(--muted)";
+  hint.textContent="登录成功后可编辑/保存到数据库（多设备同步）。";
+
+  const btnCancel = button("取消","btn",closeModal);
+  const btnOk = button("登录","btn primary", async ()=>{
+    const user = u.el.value.trim();
+    const pass = p.el.value;
+    if(!user || !pass) return toast("请输入账号密码");
+    try{
+      const out = await apiLogin(user, pass);
+      setAdminToken(out.token);
+      closeModal();
+      toast("登录成功");
+    }catch{
+      toast("账号或密码错误");
+    }
+  });
+
+  openModal("管理员登录",[u.wrap,p.wrap,hint],[btnCancel,btnOk]);
+}
+
+/** ==========================
+ *  CRUD：一级分类
+ * ========================== */
+function openCategoryModal(cat){
+  if(!requireAdmin()) return;
+  const isNew = !cat;
+  const data = cat ? {...cat} : { id: uid(), name:"", order: nextOrder(state.categories), subcategories: [] };
+
+  const name = input("名称", data.name);
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+
+  const btnCancel = button("取消","btn",closeModal);
+  const btnSave = button(isNew?"创建":"保存","btn primary", async ()=>{
+    const vName=name.el.value.trim();
+    const vOrder=parseInt(order.el.value,10);
+    if(!vName) return toast("请输入名称");
+    data.name=vName;
+    data.order=Number.isFinite(vOrder)?vOrder:999;
+
+    if(isNew){
+      state.categories.push(data);
+      activeCatId=data.id;
+    }else{
+      const idx=state.categories.findIndex(c=>c.id===data.id);
+      if(idx>=0){
+        data.subcategories = state.categories[idx].subcategories || [];
+        state.categories[idx]=data;
+      }
+    }
+
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew?"新增一级分类":"编辑一级分类",[row2(name.wrap, order.wrap)],[btnCancel,btnSave]);
+}
+
+/** ==========================
+ *  CRUD：二级分类
+ * ========================== */
+function openSubcategoryModal(cat, subcat){
+  if(!requireAdmin()) return;
+  const isNew = !subcat;
+  const data = subcat ? {...subcat} : { id: uid(), name:"", order: nextOrder(cat.subcategories||[]), sites: [] };
+
+  const name = input("名称", data.name);
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+
+  const btnCancel = button("取消","btn",closeModal);
+  const btnSave = button(isNew?"创建":"保存","btn primary", async ()=>{
+    const vName=name.el.value.trim();
+    const vOrder=parseInt(order.el.value,10);
+    if(!vName) return toast("请输入名称");
+    data.name=vName;
+    data.order=Number.isFinite(vOrder)?vOrder:999;
+
+    cat.subcategories ||= [];
+    if(isNew){
+      cat.subcategories.push(data);
+    }else{
+      const idx=cat.subcategories.findIndex(s=>s.id===data.id);
+      if(idx>=0){
+        data.sites = cat.subcategories[idx].sites || [];
+        cat.subcategories[idx]=data;
+      }
+    }
+
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew?"新增二级分类":"编辑二级分类",[row2(name.wrap, order.wrap)],[btnCancel,btnSave]);
+}
+
+/** ==========================
+ *  CRUD：网站（含 icon 上传转 base64）
+ * ========================== */
+function openSiteModal(cat, subcat, site){
+  if(!requireAdmin()) return;
+
+  const isNew=!site;
+  const data = site ? {...site} : { id: uid(), title:"", url:"", desc:"", icon:"", order: nextOrder(subcat.sites||[]) };
+
+  const title = input("标题", data.title);
+  const url = input("URL", data.url, "url");
+  const order = input("排序（数字越小越靠前）", data.order, "number");
+  const icon = input("Icon（可选：粘贴图片URL或base64；为空则自动favicon）", data.icon||"");
+  const desc = textarea("描述", data.desc||"");
+
+  // 上传转 base64
+  const uploadBox = document.createElement("div");
+  uploadBox.style.border="1px dashed rgba(16,24,40,.2)";
+  uploadBox.style.borderRadius="14px";
+  uploadBox.style.padding="10px";
+  uploadBox.style.background="#f9fafb";
+
+  const upLab = document.createElement("div");
+  upLab.style.fontSize="12px";
+  upLab.style.color="var(--muted)";
+  upLab.style.marginBottom="6px";
+  upLab.textContent="上传Icon（转 base64 写入 Icon 字段）";
+
+  const file = document.createElement("input");
+  file.type="file";
+  file.accept="image/*";
+
+  const help = document.createElement("div");
+  help.style.fontSize="12px";
+  help.style.color="var(--muted)";
+  help.style.marginTop="6px";
+  help.innerHTML = "建议小图（64/128），过大的 base64 会影响加载。";
+
+  const preview = document.createElement("div");
+  preview.style.display="flex";
+  preview.style.gap="10px";
+  preview.style.alignItems="center";
+  preview.style.marginTop="10px";
+
+  const img = document.createElement("img");
+  img.style.width="44px";
+  img.style.height="44px";
+  img.style.borderRadius="14px";
+  img.style.border="1px solid rgba(16,24,40,.12)";
+
+  const clearBtn = button("清空手动Icon（改用自动favicon）","btn",()=>{
+    icon.el.value="";
+    refreshPreview();
+    toast("已清空");
+  });
+  clearBtn.style.padding="6px 10px";
+
+  preview.append(img, clearBtn);
+
+  function refreshPreview(){
+    const manual = icon.el.value.trim();
+    if(manual){
+      img.src = manual;
+      img.onerror=()=>{ img.onerror=null; img.src=placeholderIconDataUrl(); };
+      return;
+    }
+    img.src = autoFaviconUrl(url.el.value.trim(), 64) || placeholderIconDataUrl();
+    img.onerror=()=>{ img.onerror=null; img.src=placeholderIconDataUrl(); };
+  }
+
+  icon.el.addEventListener("input", refreshPreview);
+  url.el.addEventListener("input", refreshPreview);
+
+  file.onchange=()=>{
+    const f=file.files?.[0];
+    if(!f) return;
+    if(f.size > 300*1024){
+      if(!confirm("图片较大，转base64会占空间且慢，仍继续？")) return;
+    }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      icon.el.value=String(reader.result||"");
+      refreshPreview();
+      toast("已转base64");
+    };
+    reader.readAsDataURL(f);
+  };
+
+  uploadBox.append(upLab, file, help, preview);
+  refreshPreview();
+
+  const btnCancel = button("取消","btn",closeModal);
+  const btnSave = button(isNew?"创建":"保存","btn primary", async ()=>{
+    const vTitle=title.el.value.trim();
+    const vUrl=url.el.value.trim();
+    const vOrder=parseInt(order.el.value,10);
+    if(!vTitle) return toast("请输入标题");
+    if(!vUrl) return toast("请输入URL");
+
+    data.title=vTitle;
+    data.url=vUrl;
+    data.order=Number.isFinite(vOrder)?vOrder:999;
+    data.icon=icon.el.value.trim();
+    data.desc=desc.el.value.trim();
+
+    subcat.sites ||= [];
+    if(isNew){
+      subcat.sites.push(data);
+    }else{
+      const idx=subcat.sites.findIndex(s=>s.id===data.id);
+      if(idx>=0) subcat.sites[idx]=data;
+    }
+
+    await saveAll();
+    render();
+    closeModal();
+    toast("已保存");
+  });
+
+  openModal(isNew?"新增网站":"编辑网站",
+    [
+      row2(title.wrap, order.wrap),
+      url.wrap,
+      icon.wrap,
+      uploadBox,
+      desc.wrap
+    ],
+    [btnCancel, btnSave]
+  );
+}
+
+/** ==========================
+ *  导入/导出
+ * ========================== */
+document.getElementById("btnExport").onclick=()=>{
+  if(!requireAdmin()) return;
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`nav_export_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("已导出");
+};
+
+document.getElementById("btnImport").onclick=()=>{
+  if(!requireAdmin()) return;
+  const inp=document.createElement("input");
+  inp.type="file";
+  inp.accept="application/json";
+  inp.onchange=async()=>{
+    const f=inp.files?.[0];
+    if(!f) return;
+    try{
+      const txt=await f.text();
+      const obj=JSON.parse(txt);
+      if(!obj || !Array.isArray(obj.categories)) throw new Error("格式错误：需要 categories 数组");
+
+      obj.categories.forEach(c=>{
+        c.subcategories ||= [];
+        c.subcategories.forEach(s=>{
+          s.sites ||= [];
+          s.sites.forEach(site=>{ if(typeof site.icon !== "string") site.icon=""; });
+        });
+      });
+
+      state=obj;
+      activeCatId=state.categories[0]?.id || null;
+      await saveAll();
+      render();
+      toast("已导入并同步");
+    }catch(e){
+      alert("导入失败："+(e?.message||e));
+    }
+  };
+  inp.click();
+};
+
+/** ==========================
+ *  顶部按钮绑定
+ * ========================== */
+document.getElementById("btnLogin").onclick=()=>openLoginModal();
+document.getElementById("btnLogout").onclick=async()=>{ await apiLogout(); setAdminToken(""); toast("已退出"); };
+
+document.getElementById("btnAddTop").onclick=()=>openCategoryModal(null);
+
+document.getElementById("btnAddSub").onclick=()=>{
+  if(!requireAdmin()) return;
+  const cat=getActiveCat();
+  if(!cat) return toast("请先创建一级分类");
+  openSubcategoryModal(cat,null);
+};
+
+document.getElementById("btnAddSite").onclick=()=>{
+  if(!requireAdmin()) return;
+  const cat=getActiveCat();
+  if(!cat) return toast("请先创建一级分类");
+  const subs=(cat.subcategories||[]).slice().sort(byOrder);
+  if(!subs.length) return toast("请先创建二级分类");
+  openSiteModal(cat, subs[0], null);
+};
+
+document.getElementById("searchInput").addEventListener("input",(e)=>{
+  searchText = e.target.value || "";
+  renderContent();
+});
+
+/** ==========================
+ *  Boot：从数据库加载
+ * ========================== */
+(async function boot(){
+  document.body.classList.toggle("isAdmin", isAdmin());
+  syncLoginUI();
+
+  try{
+    state = await apiGetData();
+    saveLocalCache();
+  }catch{
+    const local = loadLocalCache();
+    if(local && Array.isArray(local.categories)){
+      state = local;
+      toast("API读取失败：回退本地缓存");
+    }else{
+      toast("API读取失败：暂无数据");
+    }
+  }
+
+  activeCatId = state.categories?.[0]?.id || null;
+  render();
+})();
 </script>
+</body>
+</html>
+
   
   
