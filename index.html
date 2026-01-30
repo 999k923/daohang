@@ -79,39 +79,80 @@ body.isAdmin .adminOnly{display:inline-flex}
   position:sticky;
   top:0;
   background:var(--panel);
-  padding:4px 0 8px;
-  z-index:2;
+  padding:8px 0 10px;
+  z-index:5;
+  border-bottom:1px solid rgba(16,24,40,.06);
 }
 .sidebarHeaderTitle{
   display:flex;
-  flex-direction:column;
-  gap:2px;
-}
-.navBrand{
-  display:flex;
   align-items:center;
-  gap:8px;
+  gap:10px;
+  min-width:0;
 }
-.navLogo{
-  width:24px;
-  height:24px;
+
+.sidebarBrandIcon{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,#ffffff,#f3f4f6);
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  border-radius:8px;
-  background:#eef2ff;
-  border:1px solid #c7d2fe;
+  flex:0 0 auto;
 }
-.navTitle{
-  font-size:14px;
-  font-weight:600;
+.sidebarBrandIcon svg{width:18px;height:18px;display:block}
+.sidebarBrandText{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.sidebarBrandTitle{
+  font-weight:800;
+  font-size:13px;
+  line-height:1.1;
   color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sidebarBrandSub{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  display:none; /* 不需要副标题文案 */
 }
 .sidebarHeaderActions{
   display:flex;
   align-items:center;
   gap:8px;
+  flex:0 0 auto;
 }
+
+/* 紧凑型图标按钮（侧边栏标题栏专用） */
+.iconBtn{
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:10px;
+  width:32px;
+  height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+}
+.iconBtn:hover{background:#f9fafb}
+.iconBtn:active{transform:translateY(1px)}
+.iconBtn svg{width:16px;height:16px;display:block}
+
+/* 折叠时：隐藏标题文本与管理员操作按钮（保留折叠按钮） */
+.sidebarCollapsed .sidebarBrandText{display:none}
+.sidebarCollapsed .sidebarHeaderActions .adminOnly{display:none !important}
+
 .sidebarToggleBtn{
   border:none;
   background:#fff;
@@ -125,28 +166,14 @@ body.isAdmin .adminOnly{display:inline-flex}
   cursor:pointer;
 }
 .sidebarToggleBtn:hover{background:#f9fafb}
-.sidebarCollapsed .sidebarHeaderTitle,
 .sidebarCollapsed #catList{display:none}
-.sidebarCollapsed .sidebarHeaderActions .adminOnly{display:none}
+.sidebarCollapsed .sidebarTools{display:none}
 .sidebarTools{
   display:flex;
   flex-direction:column;
   gap:10px;
   margin:8px 0 12px;
 }
-.headerIconBtn{
-  border:1px solid var(--line);
-  background:#fff;
-  border-radius:10px;
-  width:32px;
-  height:32px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  font-size:16px;
-}
-.headerIconBtn:hover{background:#f9fafb}
 .sidebarTools .btn,
 .sidebarTools input{width:100%}
 .sidebarTools input{
@@ -246,23 +273,22 @@ body.isAdmin .adminOnly{display:inline-flex}
 /* ===== Cards ===== */
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
-  gap:14px;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
   padding:12px;
 }
+@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.cards{grid-template-columns:1fr}}
 
 .card{
   background:#fff;
   border:1px solid var(--line);
-  border-radius:14px;
-  padding:12px 14px;
+  border-radius:16px;
+  padding:12px;
   display:flex;
-  align-items:center;
-  gap:12px;
-  min-height:86px;
-  box-shadow:0 8px 20px rgba(16,24,40,.06);
-  min-width:0;
-  cursor:pointer;
+  flex-direction:column;
+  gap:8px;
+  min-height:150px;
 }
 
 .cardTitle{
@@ -270,9 +296,17 @@ body.isAdmin .adminOnly{display:inline-flex}
   font-size:14px;
   line-height:1.35;
   display:-webkit-box;
-  -webkit-line-clamp:1;
+  -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
+}
+
+.cardUrl{
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .cardDesc{
@@ -280,7 +314,7 @@ body.isAdmin .adminOnly{display:inline-flex}
   color:#333;
   line-height:1.4;
   display:-webkit-box;
-  -webkit-line-clamp:1;
+  -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
@@ -322,6 +356,105 @@ body.isAdmin .adminOnly{display:inline-flex}
   border-radius:999px;
   display:none;
 }
+
+/* ===== Card fixed size & no overflow (修复卡片撑开/溢出) ===== */
+.cards{
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  overflow: hidden;
+}
+.card{
+  height: 140px;         /* 固定卡片高度 */
+  min-height: 140px;     /* 覆盖旧的 min-height */
+  overflow: hidden;      /* 内容不允许溢出卡片 */
+  min-width: 0;          /* 防止子元素撑破 grid */
+}
+.cardTitle{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cardUrl{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardDesc{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 图标永远裁切在框内（防止图片溢出） */
+.card img{
+  object-fit: cover;
+  max-width: 34px;
+  max-height: 34px;
+}
+
+
+/* ===== Compact cards (更紧凑，一屏更多网站) ===== */
+.cards{
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+.card{
+  height: 104px;
+  min-height: 104px;
+  padding: 10px;
+  border-radius: 14px;
+  gap: 6px;
+}
+.cardTitle{
+  font-size: 13px;
+  -webkit-line-clamp: 1;
+}
+.cardUrl{
+  font-size: 11px;
+}
+.cardDesc{
+  display:none; /* 紧凑模式默认隐藏描述（hover 气泡可看完整） */
+}
+.card img{
+  width: 30px !important;
+  height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+  border-radius: 10px !important;
+}
+
+
+/* ===== Ultra Compact cards（一屏最大化） ===== */
+.cards{
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+.card{
+  height: 72px;
+  min-height: 72px;
+  padding: 8px;
+  border-radius: 12px;
+  gap: 4px;
+}
+.cardTitle{
+  font-size: 12px;
+  -webkit-line-clamp: 1;
+}
+.cardUrl{
+  font-size: 10px;
+}
+.cardDesc{display:none;}
+.card img{
+  width: 24px !important;
+  height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  border-radius: 8px !important;
+}
+
 </style>
 </head>
 <body>
@@ -329,27 +462,27 @@ body.isAdmin .adminOnly{display:inline-flex}
   <div class="grid">
     <aside class="sidebar">
       <div class="sidebarHeader">
-        <div class="sidebarHeaderTitle">
-          <div class="navBrand">
-            <span class="navLogo" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4338ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M3.6 9h16.8M3.6 15h16.8"></path>
-                <path d="M12 3a14 14 0 0 1 0 18"></path>
-                <path d="M12 3a14 14 0 0 0 0 18"></path>
-              </svg>
-            </span>
-            <span class="navTitle">我的导航</span>
-          </div>
-        </div>
-        <div class="sidebarHeaderActions">
-          <button class="headerIconBtn adminOnly" id="btnAddTop" title="新增一级分类" aria-label="新增一级分类">＋</button>
-          <button class="headerIconBtn adminOnly" id="btnAddSub" title="新增二级分类" aria-label="新增二级分类">＋</button>
-          <button class="headerIconBtn adminOnly" id="btnAddSite" title="新增网站" aria-label="新增网站">＋</button>
-          <button class="sidebarToggleBtn" id="btnToggleSidebar" aria-label="折叠/展开侧边栏">☰</button>
-        </div>
-      </div>
-      <div class="sidebarTools">
+  <div class="sidebarHeaderTitle" title="我的导航">
+    <div class="sidebarBrandIcon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="rgba(37,99,235,.9)" stroke-width="1.7"/>
+  <path d="M2 12h20" stroke="rgba(37,99,235,.75)" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="M12 2c3 3 3 17 0 20" stroke="rgba(37,99,235,.75)" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="M12 2c-3 3-3 17 0 20" stroke="rgba(37,99,235,.35)" stroke-width="1.7" stroke-linecap="round"/>
+</svg></div>
+    <div class="sidebarBrandText">
+      <div class="sidebarBrandTitle">我的导航</div>
+      <div class="sidebarBrandSub">导航</div>
+    </div>
+  </div>
+
+  <div class="sidebarHeaderActions">
+    <button class="iconBtn adminOnly" id="btnAddTop" title="新增一级" aria-label="新增一级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="rgba(16,24,40,.85)" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button class="iconBtn adminOnly" id="btnAddSub" title="新增二级" aria-label="新增二级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 12l9 5 9-5" stroke="rgba(16,24,40,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 16l9 5 9-5" stroke="rgba(16,24,40,.35)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="iconBtn adminOnly" id="btnAddSite" title="新增网站" aria-label="新增网站"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 12" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 12" stroke="rgba(16,24,40,.55)" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <button class="sidebarToggleBtn" id="btnToggleSidebar" aria-label="折叠/展开侧边栏">☰</button>
+  </div>
+</div>
+<div class="sidebarTools">
         <input id="searchInput" placeholder="全局搜索标题/描述/URL..." />
 
         <span id="loginBadge" style="font-size:12px;color:var(--muted);padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#fff">
@@ -358,7 +491,7 @@ body.isAdmin .adminOnly{display:inline-flex}
 
         <button class="btn" id="btnLogin">登录</button>
         <button class="btn" id="btnLogout" style="display:none">退出</button>
-        <button class="btn adminOnly" id="btnExport">导出JSON</button>
+<button class="btn adminOnly" id="btnExport">导出JSON</button>
         <button class="btn adminOnly" id="btnImport">导入JSON</button>
       </div>
       <div id="catList"></div>
@@ -956,10 +1089,6 @@ function renderSubcatBlock(cat, subcat, sites, searchMode){
 function renderSiteCard(cat, subcat, site){
   const card=document.createElement("div");
   card.className="card";
-  card.onclick=()=>site.url?window.open(site.url,"_blank","noopener,noreferrer"):toast("无URL");
-  card.ondblclick=()=>{
-    if(requireAdmin()) openSiteModal(cat, subcat, site);
-  };
 
   // Tooltip hover
   card.addEventListener("mouseenter",(e)=>{
@@ -970,31 +1099,73 @@ function renderSiteCard(cat, subcat, site){
   card.addEventListener("mousemove",(e)=>moveTooltip(e.clientX, e.clientY));
   card.addEventListener("mouseleave",()=>hideTooltip());
 
+  const top=document.createElement("div");
+  top.style.display="flex";
+  top.style.justifyContent="space-between";
+  top.style.gap="10px";
+
+  const left=document.createElement("div");
+  left.style.display="flex";
+  left.style.gap="10px";
+  left.style.minWidth="0";
+
   const icon=document.createElement("img");
   icon.src=resolveIconSrc(site);
   icon.onerror=()=>{ icon.onerror=null; icon.src=placeholderIconDataUrl(); };
-  icon.style.width="40px";
-  icon.style.height="40px";
+  icon.style.width="34px";
+  icon.style.height="34px";
   icon.style.borderRadius="12px";
-  icon.style.border="1px solid rgba(16,24,40,.08)";
+  icon.style.border="1px solid rgba(16,24,40,.12)";
   icon.style.flex="0 0 auto";
 
   const info=document.createElement("div");
   info.style.minWidth="0";
-  info.style.flex="1";
 
   const t=document.createElement("div");
   t.className="cardTitle";
   t.textContent=site.title||"(未命名)";
   t.title = site.title || "";
 
-  const d=document.createElement("div");
-  d.className="cardDesc";
-  d.textContent=site.desc||"";
+  const u=document.createElement("a");
+  u.className="cardUrl";
+  u.href=site.url||"#";
+  u.target="_blank";
+  u.rel="noopener noreferrer";
+  u.textContent=shortUrl(site.url);
+  u.title=site.url||"";
 
-  info.append(t,d);
+  info.append(t,u);
+  left.append(icon,info);
 
-  card.append(icon, info);
+  const acts=document.createElement("div");
+  acts.style.display="flex";
+  acts.style.gap="6px";
+
+  const go=button("↗","btn",()=>site.url?window.open(site.url,"_blank","noopener,noreferrer"):toast("无URL"));
+  go.style.padding="6px 10px";
+
+  const edit=button("✎","btn adminOnly",()=>{ if(requireAdmin()) openSiteModal(cat, subcat, site); });
+  edit.style.padding="6px 10px";
+
+  const del=button("🗑","btn danger adminOnly",async()=>{
+    if(!requireAdmin()) return;
+    if(confirm(`确定删除「${site.title}」？`)){
+      subcat.sites = (subcat.sites||[]).filter(s=>s.id!==site.id);
+      await saveAll();
+      render();
+    }
+  });
+  del.style.padding="6px 10px";
+
+  acts.append(go, edit, del);
+
+  top.append(left, acts);
+
+  const desc=document.createElement("div");
+  desc.className="cardDesc";
+  desc.textContent=site.desc||"";
+
+  card.append(top, desc);
   return card;
 }
 </script>
@@ -1011,7 +1182,7 @@ function openLoginModal(){
   const hint = document.createElement("div");
   hint.style.fontSize="12px";
   hint.style.color="var(--muted)";
-  hint.textContent="登录成功后可编辑/保存到数据库（多设备同步）。";
+  hint.textContent="登录成功后可编辑/保存到数据库（多设备同步）";
 
   const btnCancel = button("取消","btn",closeModal);
   const btnOk = button("登录","btn primary", async ()=>{
