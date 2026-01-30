@@ -9,7 +9,7 @@ const ADMIN_PASS = process.env.ADMIN_PASS || "xiao123456";
 const TOKEN_TTL_HOURS = Number(process.env.TOKEN_TTL_HOURS || 168); // 7天
 
 const app = express();
-app.use(express.json({ limit: "20mb" })); // base64 icon 需要大一点
+app.use(express.json({ limit: "20mb" })); // base64 icon
 
 const db = new Database(DB_PATH);
 db.exec(`
@@ -70,7 +70,8 @@ function requireToken(req, res, next){
   next();
 }
 
-app.post("/api/login", (req, res) => {
+/** ========= 核心处理函数（被多个路由复用） ========= */
+function handleLogin(req, res){
   const { username, password } = req.body || {};
   if(username !== ADMIN_USER || password !== ADMIN_PASS){
     return res.status(401).json({ error: "Invalid credentials" });
@@ -81,25 +82,24 @@ app.post("/api/login", (req, res) => {
   db.prepare("INSERT INTO sessions (token, username, expires_at) VALUES (?, ?, ?)")
     .run(token, username, expiresAt);
   res.json({ token, expiresAt });
-});
+}
 
-app.post("/api/logout", requireToken, (req, res) => {
+function handleLogout(req, res){
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   db.prepare("DELETE FROM sessions WHERE token=?").run(token);
   res.json({ ok: true });
-});
+}
 
-app.get("/api/data", (req, res) => {
+function handleGetData(req, res){
   res.json(getNavData());
-});
+}
 
-app.post("/api/data", requireToken, (req, res) => {
+function handlePostData(req, res){
   const data = req.body;
   if(!data || !Array.isArray(data.categories)){
     return res.status(400).json({ error: "Invalid payload: categories[] required" });
   }
-  // 补全字段
   data.categories.forEach(c=>{
     c.subcategories ||= [];
     c.subcategories.forEach(s=>{
@@ -112,6 +112,27 @@ app.post("/api/data", requireToken, (req, res) => {
 
   const updatedAt = saveNavData(data);
   res.json({ ok: true, updatedAt });
-});
+}
+
+/** ========= 双兼容路由 ========= */
+// 友好提示：避免看到 Cannot GET
+app.get("/", (req,res)=>res.type("text").send("nav-api ok. Use /api/data or /data"));
+app.get("/api", (req,res)=>res.type("text").send("nav-api ok. Use /api/data"));
+app.get("/api/", (req,res)=>res.type("text").send("nav-api ok. Use /api/data"));
+
+// login：/api/login 和 /login
+app.post("/api/login", handleLogin);
+app.post("/login", handleLogin);
+
+// logout：/api/logout 和 /logout（需要 token）
+app.post("/api/logout", requireToken, handleLogout);
+app.post("/logout", requireToken, handleLogout);
+
+// data：GET/POST 都兼容 /api/data 与 /data
+app.get("/api/data", handleGetData);
+app.get("/data", handleGetData);
+
+app.post("/api/data", requireToken, handlePostData);
+app.post("/data", requireToken, handlePostData);
 
 app.listen(PORT, () => console.log(`✅ nav-api listening on :${PORT}`));
