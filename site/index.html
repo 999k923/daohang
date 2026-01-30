@@ -196,3 +196,589 @@ body.isAdmin .adminOnly{display:inline-flex}
 </style>
 </head>
 <body>
+<header>
+  <div>
+    <h1>静态导航站</h1>
+    <div style="font-size:12px;color:var(--muted)">VPS 同步：SQLite 数据库 · 管理员登录后可编辑</div>
+  </div>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="搜索标题/描述/URL..." style="padding:8px 12px;border-radius:999px;border:1px solid var(--line);min-width:260px" />
+
+    <span id="loginBadge" style="font-size:12px;color:var(--muted);padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#fff">
+      ● <span id="loginText">游客模式</span>
+    </span>
+
+    <button class="btn" id="btnLogin">登录</button>
+    <button class="btn" id="btnLogout" style="display:none">退出</button>
+
+    <button class="btn primary adminOnly" id="btnAddTop">+ 新增一级</button>
+    <button class="btn ok adminOnly" id="btnAddSub">+ 新增二级</button>
+    <button class="btn ok adminOnly" id="btnAddSite">+ 新增网站</button>
+    <button class="btn adminOnly" id="btnExport">导出JSON</button>
+    <button class="btn adminOnly" id="btnImport">导入JSON</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <aside class="sidebar">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b style="font-size:13px;color:var(--muted)">一级分类</b>
+        <span style="font-size:12px;color:var(--muted)">同步来自数据库</span>
+      </div>
+      <div id="catList"></div>
+    </aside>
+
+    <main class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap">
+        <div>
+          <h2 id="activeTitle" style="margin:0;font-size:16px">-</h2>
+          <div id="activeMeta" style="font-size:12px;color:var(--muted)">-</div>
+        </div>
+      </div>
+      <div id="content" style="margin-top:12px"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modalMask" id="modalMask">
+  <div style="width:min(720px,100%);background:#fff;border-radius:16px;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden">
+    <div style="padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+      <b id="modalTitle">编辑</b>
+      <button class="btn" id="modalClose">关闭</button>
+    </div>
+    <div id="modalBody" style="padding:14px;display:flex;flex-direction:column;gap:10px"></div>
+    <div id="modalFoot" style="padding:12px 14px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip">
+  <div class="ttTitle" id="ttTitle"></div>
+  <div class="ttUrl" id="ttUrl"></div>
+  <div class="ttDesc" id="ttDesc"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/** ==========================
+ *  API 配置（同域反代 /api）
+ * ========================== */
+const API_DATA_URL = "/api/data";
+const API_LOGIN_URL = "/api/login";
+const API_LOGOUT_URL = "/api/logout";
+const TOKEN_KEY = "navsite_api_token_v1";
+const LOCAL_CACHE_KEY = "navsite_local_cache_v1";
+
+/** ==========================
+ *  State
+ * ========================== */
+let state = { version: 1, updatedAt: new Date().toISOString(), categories: [] };
+let activeCatId = null;
+let searchText = "";
+
+/** ==========================
+ *  Utils
+ * ========================== */
+function uid(){ return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+function byOrder(a,b){ return (a.order ?? 0) - (b.order ?? 0); }
+function nextOrder(arr){ return (arr||[]).reduce((m,x)=>Math.max(m, Number(x.order)||0),0)+1; }
+function fmtTime(iso){
+  try{
+    const d = new Date(iso);
+    const p=n=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }catch{return iso}
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display="block";
+  clearTimeout(toast._timer);
+  toast._timer=setTimeout(()=>t.style.display="none",1700);
+}
+
+function getToken(){ return sessionStorage.getItem(TOKEN_KEY) || ""; }
+function isAdmin(){ return !!getToken(); }
+function setAdminToken(token){
+  if(token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
+  document.body.classList.toggle("isAdmin", !!token);
+  syncLoginUI();
+  render();
+}
+function syncLoginUI(){
+  const btnLogin = document.getElementById("btnLogin");
+  const btnLogout = document.getElementById("btnLogout");
+  const loginText = document.getElementById("loginText");
+  btnLogin.style.display = isAdmin() ? "none" : "inline-flex";
+  btnLogout.style.display = isAdmin() ? "inline-flex" : "none";
+  loginText.textContent = isAdmin() ? "管理员已登录" : "游客模式";
+}
+
+/** URL 显示短链接（不撑高度） */
+function shortUrl(url){
+  try{
+    const u = new URL(url);
+    return u.host + "/…";
+  }catch{
+    return url || "";
+  }
+}
+
+/** favicon / icon */
+function getDomainFromUrl(u){ try { return new URL(u).hostname; } catch { return ""; } }
+function autoFaviconUrl(siteUrl, size=64){
+  const domain = getDomainFromUrl(siteUrl);
+  if(!domain) return "";
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
+}
+function placeholderIconDataUrl(){
+  return "data:image/svg+xml;base64," + btoa(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>
+      <rect width='64' height='64' rx='18' fill='rgba(16,24,40,.05)'/>
+      <path d='M22 32h20' stroke='rgba(16,24,40,.35)' stroke-width='4' stroke-linecap='round'/>
+    </svg>`
+  );
+}
+function resolveIconSrc(site){
+  const manual = (site.icon || "").trim();
+  if(manual) return manual;
+  const auto = autoFaviconUrl(site.url, 64);
+  return auto || placeholderIconDataUrl();
+}
+
+/** ==========================
+ *  Tooltip Preview
+ * ========================== */
+const TT = { el:null, t:null, u:null, d:null, visible:false };
+function initTooltip(){
+  TT.el = document.getElementById("tooltip");
+  TT.t  = document.getElementById("ttTitle");
+  TT.u  = document.getElementById("ttUrl");
+  TT.d  = document.getElementById("ttDesc");
+}
+function showTooltip(payload){
+  if(!TT.el) initTooltip();
+  TT.t.textContent = payload.title || "";
+  TT.u.textContent = payload.url || "";
+  TT.d.textContent = payload.desc || "";
+  TT.el.style.display = "block";
+  TT.visible = true;
+}
+function hideTooltip(){
+  if(!TT.el) return;
+  TT.el.style.display="none";
+  TT.visible=false;
+}
+function moveTooltip(clientX, clientY){
+  if(!TT.el || !TT.visible) return;
+  const margin=14, offset=16;
+  let x=clientX+offset, y=clientY+offset;
+  const rect = TT.el.getBoundingClientRect();
+  if(x+rect.width+margin>window.innerWidth) x=clientX-rect.width-offset;
+  if(y+rect.height+margin>window.innerHeight) y=clientY-rect.height-offset;
+  x=Math.max(margin, Math.min(x, window.innerWidth-rect.width-margin));
+  y=Math.max(margin, Math.min(y, window.innerHeight-rect.height-margin));
+  TT.el.style.left=x+"px";
+  TT.el.style.top=y+"px";
+}
+
+/** ==========================
+ *  Modal
+ * ========================== */
+const modalMask = document.getElementById("modalMask");
+const modalTitle = document.getElementById("modalTitle");
+const modalBody = document.getElementById("modalBody");
+const modalFoot = document.getElementById("modalFoot");
+document.getElementById("modalClose").onclick = closeModal;
+modalMask.addEventListener("click", (e)=>{ if(e.target===modalMask) closeModal(); });
+
+function openModal(title, bodyNodes, footNodes){
+  modalTitle.textContent = title;
+  modalBody.innerHTML="";
+  modalFoot.innerHTML="";
+  bodyNodes.forEach(n=>modalBody.appendChild(n));
+  footNodes.forEach(n=>modalFoot.appendChild(n));
+  modalMask.style.display="flex";
+}
+function closeModal(){ modalMask.style.display="none"; }
+
+function button(text, cls, onClick){
+  const b=document.createElement("button");
+  b.className=cls;
+  b.textContent=text;
+  b.onclick=onClick;
+  return b;
+}
+function input(labelText, value="", type="text"){
+  const wrap=document.createElement("div");
+  const lab=document.createElement("div");
+  lab.textContent=labelText;
+  lab.style.fontSize="12px";
+  lab.style.color="var(--muted)";
+  lab.style.marginBottom="6px";
+  const el=document.createElement("input");
+  el.type=type;
+  el.value=value??"";
+  el.style.width="100%";
+  el.style.padding="10px";
+  el.style.border="1px solid var(--line)";
+  el.style.borderRadius="12px";
+  el.autocomplete="off";
+  wrap.append(lab, el);
+  return {wrap, el};
+}
+function textarea(labelText, value=""){
+  const wrap=document.createElement("div");
+  const lab=document.createElement("div");
+  lab.textContent=labelText;
+  lab.style.fontSize="12px";
+  lab.style.color="var(--muted)";
+  lab.style.marginBottom="6px";
+  const el=document.createElement("textarea");
+  el.value=value??"";
+  el.style.width="100%";
+  el.style.padding="10px";
+  el.style.border="1px solid var(--line)";
+  el.style.borderRadius="12px";
+  el.style.minHeight="90px";
+  wrap.append(lab, el);
+  return {wrap, el};
+}
+function row2(a,b){
+  const r=document.createElement("div");
+  r.style.display="flex";
+  r.style.gap="10px";
+  r.append(a,b);
+  a.style.flex="1"; b.style.flex="1";
+  return r;
+}
+
+/** ==========================
+ *  API Calls
+ * ========================== */
+async function apiGetData(){
+  const res = await fetch(API_DATA_URL, { cache:"no-store" });
+  if(!res.ok) throw new Error("GET /api/data failed");
+  const obj = await res.json();
+  obj.categories ||= [];
+  obj.categories.forEach(c=>{
+    c.subcategories ||= [];
+    c.subcategories.forEach(s=>{
+      s.sites ||= [];
+      s.sites.forEach(site=>{ if(typeof site.icon !== "string") site.icon=""; });
+    });
+  });
+  return obj;
+}
+async function apiLogin(username, password){
+  const res = await fetch(API_LOGIN_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if(!res.ok) throw new Error("login failed");
+  return await res.json();
+}
+async function apiLogout(){
+  const token=getToken();
+  if(!token) return;
+  try{
+    await fetch(API_LOGOUT_URL, { method:"POST", headers:{ "Authorization":"Bearer "+token } });
+  }catch{}
+}
+async function apiSaveData(){
+  if(!isAdmin()) return;
+  const token=getToken();
+  const res = await fetch(API_DATA_URL, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body: JSON.stringify(state)
+  });
+  if(!res.ok){
+    if(res.status===401){
+      toast("保存失败：登录已过期");
+      setAdminToken("");
+      return;
+    }
+    toast("保存失败："+res.status);
+    return;
+  }
+  const out = await res.json();
+  if(out?.updatedAt) state.updatedAt = out.updatedAt;
+}
+
+function saveLocalCache(){ try{ localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(state)); }catch{} }
+function loadLocalCache(){ try{ const raw=localStorage.getItem(LOCAL_CACHE_KEY); return raw?JSON.parse(raw):null; }catch{return null;} }
+async function saveAll(){
+  saveLocalCache();
+  await apiSaveData();
+}
+
+function requireAdmin(){
+  if(!isAdmin()){
+    toast("需要管理员登录");
+    openLoginModal();
+    return false;
+  }
+  return true;
+}
+
+/** ==========================
+ *  Render
+ * ========================== */
+function getActiveCat(){
+  return state.categories.find(c=>c.id===activeCatId) || state.categories[0] || null;
+}
+
+function render(){
+  renderSidebar();
+  renderContent();
+}
+
+function renderSidebar(){
+  const list=document.getElementById("catList");
+  list.innerHTML="";
+  const cats=[...(state.categories||[])].sort(byOrder);
+  if(!activeCatId && cats[0]) activeCatId=cats[0].id;
+
+  cats.forEach(cat=>{
+    const item=document.createElement("div");
+    item.className="catItem"+(cat.id===activeCatId?" active":"");
+    item.onclick=()=>{ activeCatId=cat.id; render(); };
+
+    const left=document.createElement("div");
+    left.textContent=cat.name;
+
+    const right=document.createElement("div");
+    right.style.display="flex";
+    right.style.gap="6px";
+
+    const edit=document.createElement("button");
+    edit.className="btn adminOnly";
+    edit.textContent="✎";
+    edit.style.padding="6px 10px";
+    edit.onclick=(e)=>{ e.stopPropagation(); openCategoryModal(cat); };
+
+    const del=document.createElement("button");
+    del.className="btn danger adminOnly";
+    del.textContent="🗑";
+    del.style.padding="6px 10px";
+    del.onclick=async(e)=>{
+      e.stopPropagation();
+      if(!requireAdmin()) return;
+      if(confirm(`确定删除「${cat.name}」？`)){
+        state.categories = state.categories.filter(c=>c.id!==cat.id);
+        if(activeCatId===cat.id) activeCatId = state.categories[0]?.id || null;
+        await saveAll();
+        render();
+      }
+    };
+
+    right.append(edit, del);
+    item.append(left, right);
+    list.appendChild(item);
+  });
+}
+
+function renderContent(){
+  const cat=getActiveCat();
+  const content=document.getElementById("content");
+  const title=document.getElementById("activeTitle");
+  const meta=document.getElementById("activeMeta");
+
+  if(!cat){
+    title.textContent="没有分类";
+    meta.textContent="请管理员登录后新增";
+    content.innerHTML="<div style='padding:20px;color:var(--muted)'>暂无数据</div>";
+    return;
+  }
+
+  title.textContent=cat.name;
+  meta.textContent=`二级分类：${cat.subcategories?.length||0} · 最近更新：${fmtTime(state.updatedAt)}`;
+
+  const subcats=(cat.subcategories||[]).slice().sort(byOrder);
+
+  // 搜索
+  if(searchText.trim()){
+    const q=searchText.trim().toLowerCase();
+    const matched=[];
+    subcats.forEach(sc=>{
+      const sites=(sc.sites||[]).filter(s=>{
+        return (s.title||"").toLowerCase().includes(q)
+          || (s.desc||"").toLowerCase().includes(q)
+          || (s.url||"").toLowerCase().includes(q);
+      }).sort(byOrder);
+      if(sites.length) matched.push({sc, sites});
+    });
+    if(!matched.length){
+      content.innerHTML="<div style='padding:20px;color:var(--muted)'>没有搜索结果</div>";
+      return;
+    }
+    const wrap=document.createElement("div");
+    wrap.className="subcats";
+    matched.forEach(({sc, sites})=>wrap.appendChild(renderSubcatBlock(cat, sc, sites, true)));
+    content.innerHTML="";
+    content.appendChild(wrap);
+    return;
+  }
+
+  if(!subcats.length){
+    content.innerHTML="<div style='padding:20px;color:var(--muted)'>暂无二级分类</div>";
+    return;
+  }
+
+  const wrap=document.createElement("div");
+  wrap.className="subcats";
+  subcats.forEach(sc=>{
+    const sites=(sc.sites||[]).slice().sort(byOrder);
+    wrap.appendChild(renderSubcatBlock(cat, sc, sites, false));
+  });
+
+  content.innerHTML="";
+  content.appendChild(wrap);
+}
+
+function renderSubcatBlock(cat, subcat, sites, searchMode){
+  const box=document.createElement("div");
+  box.className="subcat";
+
+  const head=document.createElement("div");
+  head.className="subHead";
+
+  const left=document.createElement("div");
+  left.innerHTML=`<b>${subcat.name}</b> <span style="color:var(--muted);font-size:12px">（网站 ${sites.length}）</span>`;
+
+  const right=document.createElement("div");
+  right.style.display="flex";
+  right.style.gap="8px";
+  right.style.flexWrap="wrap";
+
+  if(!searchMode){
+    const add=button("新增网站","btn ok adminOnly",()=>{ if(requireAdmin()) openSiteModal(cat, subcat, null); });
+    right.appendChild(add);
+  }
+  right.appendChild(button("编辑二级","btn adminOnly",()=>{ if(requireAdmin()) openSubcategoryModal(cat, subcat); }));
+  right.appendChild(button("删除二级","btn danger adminOnly",async()=>{
+    if(!requireAdmin()) return;
+    if(confirm(`确定删除二级「${subcat.name}」？`)){
+      cat.subcategories = cat.subcategories.filter(s=>s.id!==subcat.id);
+      await saveAll();
+      render();
+    }
+  }));
+
+  head.append(left,right);
+
+  const cards=document.createElement("div");
+  cards.className="cards";
+
+  if(!sites.length){
+    const empty=document.createElement("div");
+    empty.style.gridColumn="1/-1";
+    empty.style.padding="18px";
+    empty.style.color="var(--muted)";
+    empty.textContent=isAdmin() ? "暂无网站，点击新增添加。" : "暂无网站（管理员登录后可添加）。";
+    cards.appendChild(empty);
+  }else{
+    sites.forEach(site=>cards.appendChild(renderSiteCard(cat, subcat, site)));
+  }
+
+  box.append(head, cards);
+  return box;
+}
+
+function renderSiteCard(cat, subcat, site){
+  const card=document.createElement("div");
+  card.className="card";
+
+  // Tooltip hover
+  card.addEventListener("mouseenter",(e)=>{
+    if(window.matchMedia && window.matchMedia("(hover: none)").matches) return;
+    showTooltip({ title: site.title||"", url: site.url||"", desc: site.desc||"" });
+    moveTooltip(e.clientX, e.clientY);
+  });
+  card.addEventListener("mousemove",(e)=>moveTooltip(e.clientX, e.clientY));
+  card.addEventListener("mouseleave",()=>hideTooltip());
+
+  const top=document.createElement("div");
+  top.style.display="flex";
+  top.style.justifyContent="space-between";
+  top.style.gap="10px";
+
+  const left=document.createElement("div");
+  left.style.display="flex";
+  left.style.gap="10px";
+  left.style.minWidth="0";
+
+  const icon=document.createElement("img");
+  icon.src=resolveIconSrc(site);
+  icon.onerror=()=>{ icon.onerror=null; icon.src=placeholderIconDataUrl(); };
+  icon.style.width="34px";
+  icon.style.height="34px";
+  icon.style.borderRadius="12px";
+  icon.style.border="1px solid rgba(16,24,40,.12)";
+  icon.style.flex="0 0 auto";
+
+  const info=document.createElement("div");
+  info.style.minWidth="0";
+
+  const t=document.createElement("div");
+  t.className="cardTitle";
+  t.textContent=site.title||"(未命名)";
+  t.title = site.title || "";
+
+  const u=document.createElement("a");
+  u.className="cardUrl";
+  u.href=site.url||"#";
+  u.target="_blank";
+  u.rel="noopener noreferrer";
+  u.textContent=shortUrl(site.url);
+  u.title=site.url||"";
+
+  info.append(t,u);
+  left.append(icon,info);
+
+  const acts=document.createElement("div");
+  acts.style.display="flex";
+  acts.style.gap="6px";
+
+  const go=button("↗","btn",()=>site.url?window.open(site.url,"_blank","noopener,noreferrer"):toast("无URL"));
+  go.style.padding="6px 10px";
+
+  const edit=button("✎","btn adminOnly",()=>{ if(requireAdmin()) openSiteModal(cat, subcat, site); });
+  edit.style.padding="6px 10px";
+
+  const del=button("🗑","btn danger adminOnly",async()=>{
+    if(!requireAdmin()) return;
+    if(confirm(`确定删除「${site.title}」？`)){
+      subcat.sites = (subcat.sites||[]).filter(s=>s.id!==site.id);
+      await saveAll();
+      render();
+    }
+  });
+  del.style.padding="6px 10px";
+
+  acts.append(go, edit, del);
+
+  top.append(left, acts);
+
+  const desc=document.createElement("div");
+  desc.className="cardDesc";
+  desc.textContent=site.desc||"";
+
+  card.append(top, desc);
+  return card;
+}
+
+/** Part 3 将包含：登录弹窗 + 完整 CRUD + 上传 icon(base64) + 导入导出 + boot 初始化 **/
+</script>
+  
+  
