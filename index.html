@@ -953,10 +953,18 @@ function shortUrl(url){
 
 /** favicon / icon */
 function getDomainFromUrl(u){ try { return new URL(u).hostname; } catch { return ""; } }
-function autoFaviconUrl(siteUrl, size=64){
+function autoFaviconUrls(siteUrl, size=64){
   const domain = getDomainFromUrl(siteUrl);
-  if(!domain) return "";
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
+  if(!domain) return [];
+  const enc = encodeURIComponent(domain);
+  return [
+    `https://api.iowen.cn/favicon/${enc}.png`,
+    `https://icon.horse/icon/${enc}?size=${size}`,
+    `https://www.google.com/s2/favicons?domain=${enc}&sz=${size}`
+  ];
+}
+function autoFaviconUrl(siteUrl, size=64){
+  return autoFaviconUrls(siteUrl, size)[0] || "";
 }
 function placeholderIconDataUrl(){
   return "data:image/svg+xml;base64," + btoa(
@@ -966,13 +974,6 @@ function placeholderIconDataUrl(){
     </svg>`
   );
 }
-function resolveIconSrc(site){
-  const manual = (site.icon || "").trim();
-  if(manual) return manual;
-  const auto = autoFaviconUrl(site.url, 64);
-  return auto || placeholderIconDataUrl();
-}
-
 function getCategoryIcon(cat){
   const raw = (cat.icon || "").trim();
   return raw || "📁";
@@ -1464,8 +1465,26 @@ function renderSiteCard(cat, subcat, site){
   left.style.minWidth="0";
 
   const icon=document.createElement("img");
-  icon.src=resolveIconSrc(site);
-  icon.onerror=()=>{ icon.onerror=null; icon.src=placeholderIconDataUrl(); };
+  const manualIcon = (site.icon || "").trim();
+  const fallbackIcons = [];
+  if(manualIcon){
+    icon.src = manualIcon;
+    fallbackIcons.push(...autoFaviconUrls(site.url, 64), placeholderIconDataUrl());
+  }else{
+    const autos = autoFaviconUrls(site.url, 64);
+    icon.src = autos[0] || placeholderIconDataUrl();
+    fallbackIcons.push(...autos.slice(1), placeholderIconDataUrl());
+  }
+  icon._fallbacks = fallbackIcons;
+  icon.onerror=()=>{
+    const next = icon._fallbacks && icon._fallbacks.length ? icon._fallbacks.shift() : "";
+    if(next && icon.src !== next){
+      icon.src = next;
+      return;
+    }
+    icon.onerror=null;
+    icon.src=placeholderIconDataUrl();
+  };
   icon.style.width="34px";
   icon.style.height="34px";
   icon.style.borderRadius="12px";
