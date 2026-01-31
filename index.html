@@ -733,6 +733,35 @@ body.mobileSidebarOpen .sidebarTools{ display:block !important; }
   #searchInput{ display:block !important; }
 }
 
+
+/* ===== Drag sort (site cards) ===== */
+.card[draggable="true"]{ cursor:default; }
+.dragHandle{
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:999px;
+  padding:6px 10px;
+  cursor:grab;
+  font-size:13px;
+  user-select:none;
+}
+.dragHandle:active{ cursor:grabbing; }
+.card.dragging{ opacity:.55; transform:scale(.98); }
+.card.dropHint{ outline:2px dashed rgba(37,99,235,.55); outline-offset:-6px; }
+
+
+/* ===== Drag sort handle ===== */
+.dragHandle{
+  cursor:grab;
+  user-select:none;
+  padding:2px 6px;
+  border:1px solid rgba(16,24,40,.12);
+  border-radius:10px;
+  background:#fff;
+}
+.dragHandle:active{ cursor:grabbing; }
+.card.dropHint{ outline:2px dashed rgba(37,99,235,.45); outline-offset:-4px; }
+
 </style>
 </head>
 <body>
@@ -1409,6 +1438,12 @@ function renderSiteCard(cat, subcat, site){
   const card=document.createElement("div");
   card.className="card";
 
+  // drag-sort meta (admin only)
+  card.dataset.siteId = site.id;
+  card.dataset.catId = cat.id;
+  card.dataset.subId = subcat.id;
+  card.draggable = isAdmin(); // only admin can drag-sort
+
   // Tooltip hover
   card.addEventListener("mouseenter",(e)=>{
     if(window.matchMedia && window.matchMedia("(hover: none)").matches) return;
@@ -1476,7 +1511,16 @@ function renderSiteCard(cat, subcat, site){
   });
   del.style.padding="6px 10px";
 
-  acts.append(go, edit, del);
+  // drag handle (admin only)
+  let dhandle = document.createElement("span");
+  dhandle.className = "dragHandle adminOnly";
+  dhandle.textContent = "⠿";
+  dhandle.title = "拖拽排序";
+  dhandle.setAttribute("aria-label","拖拽排序");
+  // prevent click opening
+  dhandle.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); });
+
+  acts.append(go, dhandle, edit, del);
 
   top.append(left, acts);
 
@@ -2030,6 +2074,210 @@ document.addEventListener("DOMContentLoaded", ()=>{
     btnImportM.addEventListener("click", (e)=>{ e.preventDefault(); btnImport.click(); });
   }
 });
+
+
+// ===== Drag sort: reorder sites within the same subcategory =====
+(function(){
+  let draggingEl = null;
+  let draggingSiteId = "";
+  let draggingCatId = "";
+  let draggingSubId = "";
+
+  function qs(sel, root=document){ return root.querySelector(sel); }
+  function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  function getSubcat(catId, subId){
+    const cat = (state.categories||[]).find(c=>c.id===catId);
+    if(!cat) return null;
+    return (cat.subcategories||[]).find(s=>s.id===subId) || null;
+  }
+
+  function normalizeOrder(sites){
+    sites.forEach((s, i)=>{ s.order = i+1; });
+  }
+
+  function handleDragStart(e){
+    const card = e.currentTarget;
+    if(!isAdmin()) return e.preventDefault();
+    // Only allow drag when started from handle
+    if(!card._dragReady){
+      e.preventDefault();
+      return;
+    }
+    card._dragReady = false;
+
+    draggingEl = card;
+    draggingSiteId = card.dataset.siteId || "";
+    draggingCatId = card.dataset.catId || "";
+    draggingSubId = card.dataset.subId || "";
+
+    card.classList.add("dragging");
+    try{
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", draggingSiteId);
+    }catch{}
+  }
+
+  function clearHints(){
+    qsa(".card.dropHint").forEach(el=>el.classList.remove("dropHint"));
+  }
+
+  function handleDragOver(e){
+    if(!draggingEl) return;
+    const target = e.target.closest(".card");
+    if(!target) return;
+    // Same subcat only
+    if(target.dataset.subId !== draggingSubId || target.dataset.catId !== draggingCatId) return;
+    e.preventDefault();
+    clearHints();
+    target.classList.add("dropHint");
+    try{ e.dataTransfer.dropEffect = "move"; }catch{}
+  }
+
+  async function handleDrop(e){
+    if(!draggingEl) return;
+    const target = e.target.closest(".card");
+    if(!target) return;
+    if(target.dataset.subId !== draggingSubId || target.dataset.catId !== draggingCatId) return;
+
+    e.preventDefault();
+    clearHints();
+
+    const sub = getSubcat(draggingCatId, draggingSubId);
+    if(!sub) return;
+
+    // Work on sorted view to match UI
+    const sorted = (sub.sites||[]).slice().sort(byOrder);
+    const fromIdx = sorted.findIndex(s=>s.id===draggingSiteId);
+    const toIdx = sorted.findIndex(s=>s.id===target.dataset.siteId);
+
+    if(fromIdx<0 || toIdx<0 || fromIdx===toIdx) return;
+
+    const [moved] = sorted.splice(fromIdx, 1);
+    // Insert before target (common behavior)
+    const insertIdx = (fromIdx < toIdx) ? (toIdx-1) : toIdx;
+    sorted.splice(insertIdx, 0, moved);
+
+    normalizeOrder(sorted);
+    sub.sites = sorted;
+
+    await saveAll();
+    render();
+
+    toast("已排序并同步");
+  }
+
+  function handleDragEnd(e){
+    if(draggingEl) draggingEl.classList.remove("dragging");
+    clearHints();
+    draggingEl = null;
+    draggingSiteId = draggingCatId = draggingSubId = "";
+  }
+
+  function bindCards(){
+    // Bind on every render by event delegation:
+    // We still attach direct listeners since cards are re-created.
+    qsa(".card").forEach(card=>{
+      if(card._dndBound) return;
+      card._dndBound = true;
+      card.addEventListener("dragstart", handleDragStart);
+      card.addEventListener("dragover", handleDragOver);
+      card.addEventListener("drop", handleDrop);
+      card.addEventListener("dragend", handleDragEnd);
+    });
+  }
+
+  // Hook into render() by monkey patch: call bindCards after each render
+  const _render = render;
+  render = function(){
+    _render();
+    requestAnimationFrame(bindCards);
+  };
+
+  // initial bind after boot render
+  document.addEventListener("DOMContentLoaded", ()=>requestAnimationFrame(bindCards));
+})();
+
+
+/* ===== Drag sort (site cards) - delegated, no render patch ===== */
+(function(){
+  let dragging = null;
+
+  function getSubcat(catId, subId){
+    const cat = (state.categories||[]).find(c=>String(c.id)===String(catId));
+    if(!cat) return null;
+    return (cat.subcategories||[]).find(s=>String(s.id)===String(subId)) || null;
+  }
+  function renumber(list){
+    list.forEach((it, i)=> it.order = (i+1)*10);
+  }
+
+  document.addEventListener("dragstart", (e)=>{
+    const card = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
+    if(!card) return;
+
+    // only allow drag when admin AND started from handle
+    if(!isAdmin() || !(e.target && e.target.closest && e.target.closest(".dragHandle"))){
+      e.preventDefault();
+      return;
+    }
+
+    dragging = {
+      siteId: card.dataset.siteId,
+      catId: card.dataset.catId,
+      subId: card.dataset.subId
+    };
+    card.classList.add("dragging");
+    if(e.dataTransfer){
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setData("text/plain", dragging.siteId); }catch{}
+    }
+  });
+
+  document.addEventListener("dragend", (e)=>{
+    const card = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
+    if(card) card.classList.remove("dragging");
+    dragging = null;
+    document.querySelectorAll(".card.dropHint").forEach(el=>el.classList.remove("dropHint"));
+  });
+
+  document.addEventListener("dragover", (e)=>{
+    if(!dragging) return;
+    const over = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
+    if(!over) return;
+    if(over.dataset.catId!==dragging.catId || over.dataset.subId!==dragging.subId) return;
+
+    e.preventDefault();
+    if(e.dataTransfer) e.dataTransfer.dropEffect="move";
+
+    document.querySelectorAll(".card.dropHint").forEach(el=>el.classList.remove("dropHint"));
+    over.classList.add("dropHint");
+  }, {passive:false});
+
+  document.addEventListener("drop", async (e)=>{
+    if(!dragging) return;
+    const over = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
+    if(!over) return;
+    if(over.dataset.catId!==dragging.catId || over.dataset.subId!==dragging.subId) return;
+
+    e.preventDefault();
+
+    const sub = getSubcat(dragging.catId, dragging.subId);
+    if(!sub) return;
+    const list = sub.sites || (sub.sites=[]);
+
+    const from = list.findIndex(x=>String(x.id)===String(dragging.siteId));
+    const to = list.findIndex(x=>String(x.id)===String(over.dataset.siteId));
+    if(from<0 || to<0 || from===to) return;
+
+    const [moved] = list.splice(from,1);
+    list.splice(to,0,moved);
+    renumber(list);
+
+    await saveAll();
+    render();
+  });
+})();
 
 </script>
 </body>
