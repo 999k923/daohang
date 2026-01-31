@@ -983,7 +983,7 @@ function getDomainFromUrl(u){ try { return new URL(u).hostname; } catch { return
 function autoFaviconUrl(siteUrl, size=64){
   const domain = getDomainFromUrl(siteUrl);
   if(!domain) return "";
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
+  return `${location.protocol}//${domain}/favicon.ico`;
 }
 function placeholderIconDataUrl(){
   return "data:image/svg+xml;base64," + btoa(
@@ -1492,7 +1492,21 @@ function renderSiteCard(cat, subcat, site){
 
   const icon=document.createElement("img");
   icon.src=resolveIconSrc(site);
-  icon.onerror=()=>{ icon.onerror=null; icon.src=placeholderIconDataUrl(); };
+  icon.onerror = () => {
+  const siteUrl = site.url || "";
+  const domain = getDomainFromUrl(siteUrl);
+
+  // 1) 如果当前失败的是 /favicon.ico，则回退到 Google s2
+  if(domain && icon.src.includes("/favicon.ico")){
+    icon.onerror = () => { icon.onerror=null; icon.src=placeholderIconDataUrl(); };
+    icon.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+    return;
+  }
+
+  // 2) Google 也失败，就用占位图
+  icon.onerror = null;
+  icon.src = placeholderIconDataUrl();
+};
   icon.style.width="34px";
   icon.style.height="34px";
   icon.style.borderRadius="12px";
