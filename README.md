@@ -1,6 +1,6 @@
 <img width="1157" height="562" alt="image" src="https://github.com/user-attachments/assets/3843151f-2cf8-4a54-a0f0-96501f1acbe4" />
 
-# 实现前端管理网站，登录账号就有操作权限，不登录可以访问不能编辑。
+# 实现前端管理，登录账号就有操作权限，不登录可以访问不能编辑。
 
 部署流程
 ==
