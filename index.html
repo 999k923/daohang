@@ -2199,34 +2199,53 @@ document.addEventListener("DOMContentLoaded", ()=>{
 })();
 
 
-/* ===== Drag sort (site cards) - delegated, no render patch ===== */
+/* ===== Drag sort (site cards) - delegated (admin only, handle-armed) ===== */
 (function(){
   let dragging = null;
+
+  // Arm drag when user presses the handle (dragstart target is the draggable card, not the handle)
+  let armedSiteId = null;
+  let armedAt = 0;
+  const ARM_TTL = 1200;
+
+  document.addEventListener("pointerdown", (e)=>{
+    const handle = e.target && e.target.closest ? e.target.closest(".dragHandle") : null;
+    if(!handle) return;
+    const card = handle.closest('.card[data-site-id]');
+    if(!card) return;
+    armedSiteId = String(card.dataset.siteId || "");
+    armedAt = Date.now();
+  }, {passive:true});
+
+  function isArmed(card){
+    if(!card || !armedSiteId) return false;
+    if(String(card.dataset.siteId||"") !== armedSiteId) return false;
+    if(Date.now() - armedAt > ARM_TTL) return false;
+    return true;
+  }
 
   function getSubcat(catId, subId){
     const cat = (state.categories||[]).find(c=>String(c.id)===String(catId));
     if(!cat) return null;
     return (cat.subcategories||[]).find(s=>String(s.id)===String(subId)) || null;
   }
-  function renumber(list){
-    list.forEach((it, i)=> it.order = (i+1)*10);
-  }
+  function renumber(list){ list.forEach((it,i)=> it.order = (i+1)*10); }
 
   document.addEventListener("dragstart", (e)=>{
     const card = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
     if(!card) return;
 
-    // only allow drag when admin AND started from handle
-    if(!isAdmin() || !(e.target && e.target.closest && e.target.closest(".dragHandle"))){
+    if(!isAdmin() || !isArmed(card)){
       e.preventDefault();
       return;
     }
 
     dragging = {
-      siteId: card.dataset.siteId,
-      catId: card.dataset.catId,
-      subId: card.dataset.subId
+      siteId: String(card.dataset.siteId),
+      catId: String(card.dataset.catId),
+      subId: String(card.dataset.subId)
     };
+
     card.classList.add("dragging");
     if(e.dataTransfer){
       e.dataTransfer.effectAllowed = "move";
@@ -2238,6 +2257,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const card = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
     if(card) card.classList.remove("dragging");
     dragging = null;
+    armedSiteId = null;
+    armedAt = 0;
     document.querySelectorAll(".card.dropHint").forEach(el=>el.classList.remove("dropHint"));
   });
 
@@ -2245,7 +2266,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(!dragging) return;
     const over = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
     if(!over) return;
-    if(over.dataset.catId!==dragging.catId || over.dataset.subId!==dragging.subId) return;
+    if(String(over.dataset.catId)!==dragging.catId || String(over.dataset.subId)!==dragging.subId) return;
 
     e.preventDefault();
     if(e.dataTransfer) e.dataTransfer.dropEffect="move";
@@ -2258,7 +2279,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(!dragging) return;
     const over = e.target && e.target.closest ? e.target.closest('.card[data-site-id]') : null;
     if(!over) return;
-    if(over.dataset.catId!==dragging.catId || over.dataset.subId!==dragging.subId) return;
+    if(String(over.dataset.catId)!==dragging.catId || String(over.dataset.subId)!==dragging.subId) return;
 
     e.preventDefault();
 
@@ -2266,7 +2287,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(!sub) return;
     const list = sub.sites || (sub.sites=[]);
 
-    const from = list.findIndex(x=>String(x.id)===String(dragging.siteId));
+    const from = list.findIndex(x=>String(x.id)===dragging.siteId);
     const to = list.findIndex(x=>String(x.id)===String(over.dataset.siteId));
     if(from<0 || to<0 || from===to) return;
 
