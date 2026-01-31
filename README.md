@@ -4,7 +4,7 @@
 
 部署流程
 ==
-假设新站叫 nav2，域名 nav2.xxx.com，端口用 21190 。
+假设新站域名 nav2.xxx.com，端口用 21190 。
 
 目录建议：
 
@@ -22,7 +22,7 @@ mkdir -p /opt/nav2/site /opt/nav2/nav-api /opt/nav2/nav-data
 
 后端代码（server.js、package.json…）→ /opt/nav2/nav-api/
 
-## 2）确认后端参数（不用改代码，只看配置）
+## 2）变量解释（不用改代码，只看配置）
 
 你后端要用环境变量：
 
