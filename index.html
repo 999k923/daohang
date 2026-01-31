@@ -720,6 +720,19 @@ body.mobileSidebarOpen .sidebarTools{ display:block !important; }
   #content{ height:auto; overflow:visible; }
 }
 
+
+/* ===== Mobile v8: 抽屉只保留搜索框 + 一级分类（按钮全部在顶部栏） ===== */
+@media (max-width: 600px){
+  /* 抽屉里隐藏“我的导航那一行”以及按钮区 */
+  .sidebarHeader{ display:none !important; }
+  .sidebar .sidebarHeader{ display:none !important; }
+
+  /* 抽屉里只保留搜索框 */
+  #loginBadge, #btnLogin, #btnLogout, #btnExport, #btnImport{ display:none !important; }
+  .sidebarTools{ gap:10px; }
+  #searchInput{ display:block !important; }
+}
+
 </style>
 </head>
 <body>
@@ -739,6 +752,21 @@ body.mobileSidebarOpen .sidebarTools{ display:block !important; }
     <button class="iconBtn adminOnly" id="btnAddTop_m" title="新增一级" aria-label="新增一级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="rgba(16,24,40,.85)" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button class="iconBtn adminOnly" id="btnAddSub_m" title="新增二级" aria-label="新增二级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 12l9 5 9-5" stroke="rgba(16,24,40,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 16l9 5 9-5" stroke="rgba(16,24,40,.35)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="iconBtn adminOnly" id="btnAddSite_m" title="新增网站" aria-label="新增网站"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 12" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 12" stroke="rgba(16,24,40,.55)" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    
+    <button class="iconBtn" id="btnUser_m" title="登录/退出" aria-label="登录/退出"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 12a4.2 4.2 0 1 0 0-8.4A4.2 4.2 0 0 0 12 12Z" stroke="rgba(16,24,40,.85)" stroke-width="1.8"/>
+  <path d="M4.5 20.2c1.7-3.6 5.2-5.2 7.5-5.2s5.8 1.6 7.5 5.2" stroke="rgba(16,24,40,.55)" stroke-width="1.8" stroke-linecap="round"/>
+</svg></button>
+    <button class="iconBtn adminOnly" id="btnExport_m" title="导出JSON" aria-label="导出JSON"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 3v10" stroke="rgba(16,24,40,.85)" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M8 11l4 4 4-4" stroke="rgba(16,24,40,.85)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 21h16" stroke="rgba(16,24,40,.55)" stroke-width="1.9" stroke-linecap="round"/>
+</svg></button>
+    <button class="iconBtn adminOnly" id="btnImport_m" title="导入JSON" aria-label="导入JSON"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 21V11" stroke="rgba(16,24,40,.85)" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M8 13l4-4 4 4" stroke="rgba(16,24,40,.85)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 3h16" stroke="rgba(16,24,40,.55)" stroke-width="1.9" stroke-linecap="round"/>
+</svg></button>
     <button class="mobileToggleBtn" id="btnMobileToggle" aria-label="打开分类">☰</button>
   </div>
 </div>
@@ -871,6 +899,13 @@ function syncLoginUI(){
   btnLogin.style.display = isAdmin() ? "none" : "inline-flex";
   btnLogout.style.display = isAdmin() ? "inline-flex" : "none";
   loginText.textContent = isAdmin() ? "管理员已登录" : "游客模式";
+
+  const btnUserM = document.getElementById("btnUser_m");
+  if(btnUserM){
+    btnUserM.title = isAdmin() ? "退出" : "登录";
+    btnUserM.setAttribute("aria-label", isAdmin() ? "退出" : "登录");
+  }
+
 }
 
 function syncSidebarState(){
@@ -1970,6 +2005,31 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }
   }, {passive:true});
 })();
+
+
+// ===== Mobile topbar bindings (login/logout + import/export) =====
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btnUserM = document.getElementById("btnUser_m");
+  const btnLogin = document.getElementById("btnLogin");
+  const btnLogout = document.getElementById("btnLogout");
+  const btnExportM = document.getElementById("btnExport_m");
+  const btnImportM = document.getElementById("btnImport_m");
+  const btnExport = document.getElementById("btnExport");
+  const btnImport = document.getElementById("btnImport");
+
+  if(btnUserM && btnLogin && btnLogout){
+    btnUserM.addEventListener("click", (e)=>{
+      e.preventDefault();
+      (isAdmin() ? btnLogout : btnLogin).click();
+    });
+  }
+  if(btnExportM && btnExport){
+    btnExportM.addEventListener("click", (e)=>{ e.preventDefault(); btnExport.click(); });
+  }
+  if(btnImportM && btnImport){
+    btnImportM.addEventListener("click", (e)=>{ e.preventDefault(); btnImport.click(); });
+  }
+});
 
 </script>
 </body>
