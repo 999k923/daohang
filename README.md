@@ -12,7 +12,7 @@
 
 后端：/opt/nav2/nav-api/（放 server.js + package.json 等）
 
-数据：/opt/nav2/nav-data/（SQLite 保存位置）
+数据：/opt/nav2/nav-data/（SQLite 保存位置，自动生成）
 
 ## 1）在 VPS 创建目录并放代码
 ```bash
