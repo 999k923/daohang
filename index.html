@@ -25,8 +25,9 @@ body{
   font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
   background:var(--bg);
   color:var(--text);
-  height:100vh;
-  overflow:hidden;
+  min-height:100vh;
+  height:auto;
+  overflow:visible;
 }
 
 a{color:inherit;text-decoration:none}
@@ -49,13 +50,13 @@ a{color:inherit;text-decoration:none}
 body.isAdmin .adminOnly{display:inline-flex}
 
 /* ===== Layout ===== */
-.wrap{max-width:1200px;margin:0 auto;padding:20px;height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;min-height:100vh}
 .grid{
   display:grid;
   grid-template-columns:260px 1fr;
   gap:16px;
-  height:100%;
 }
+
 .sidebarCollapsed .grid{grid-template-columns:56px 1fr}
 @media(max-width:900px){
   .grid{grid-template-columns:1fr}
@@ -69,7 +70,7 @@ body.isAdmin .adminOnly{display:inline-flex}
 }
 
 /* ===== Sidebar ===== */
-.sidebar{padding:12px;height:100%;overflow:auto}
+.sidebar{padding:12px;overflow:visible}
 .sidebarHeader{
   display:flex;
   justify-content:space-between;
@@ -254,7 +255,7 @@ body.isAdmin .adminOnly{display:inline-flex}
 .subItem.active{background:#eff6ff;color:#1d4ed8}
 
 /* ===== Panel ===== */
-.panel{padding:14px;height:100%;overflow:auto}
+.panel{padding:14px;height:100%;overflow:visible}
 .subcats{display:flex;flex-direction:column;gap:16px}
 
 .subcat{
@@ -621,11 +622,102 @@ body.mobileSidebarOpen .mobileBackdrop{ display:block; }
 }
 
 
-@media (max-width: 600px){
-  /* 打开抽屉时强制显示一级分类区域（避免桌面折叠态影响） */
-  body.mobileSidebarOpen #catList{ display:block !important; }
-  body.mobileSidebarOpen .sidebarTools{ display:block !important; }
+body.mobileSidebarOpen .sidebarTools{ display:block !important; }
   body.mobileSidebarOpen .sidebarHeader{ display:flex !important; }
+}
+
+
+/* ===== Mobile topbar content (brand + actions in one row) ===== */
+.mobileBrand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.mobileBrandTitle{
+  font-weight:800;
+  font-size:14px;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.mobileTopbarActions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+@media (max-width: 600px){
+  /* 抽屉里不再显示与顶部栏重复的信息 */
+  .sidebarHeader{ display:none !important; }
+  .sidebarTools{ display:none !important; }
+}
+
+
+/* ===== Mobile v5: 顶栏按钮均匀 + 抽屉仅显示一级分类 ===== */
+@media (max-width: 600px){
+  .mobileTopbar{
+    justify-content:space-between !important;
+    gap:10px;
+  }
+  .mobileTopbarActions{
+    gap:8px !important;
+  }
+  /* 顶栏按钮统一尺寸，视觉更均匀 */
+  .mobileTopbarActions .iconBtn{
+    width:36px;height:36px;border-radius:12px;
+  }
+  .mobileTopbarActions .iconBtn svg{width:16px;height:16px;}
+  .mobileToggleBtn{
+    width:36px;height:36px;border-radius:12px;
+    box-shadow:0 10px 24px rgba(0,0,0,.12);
+  }
+
+  /* 抽屉里隐藏与顶栏重复内容（标题/新增按钮/搜索/导入导出/登录状态等） */
+  .sidebar .sidebarHeader{display:none !important;}
+  .sidebar .sidebarTools{display:none !important;}
+
+  /* 仅保留一级分类列表 */
+  #catList{display:block !important;}
+}
+
+
+/* ===== Mobile v6: 强制隐藏抽屉内重复头部/工具栏 ===== */
+@media (max-width: 600px){
+  .sidebar > .sidebarHeader{ display:none !important; }
+  .sidebar > .sidebarTools{ display:none !important; }
+}
+
+
+/* ===== Mobile v7: 抽屉只显示一级分类列表（彻底隐藏重复头部/工具栏） ===== */
+@media (max-width: 600px){
+  .sidebar .sidebarHeader{ display:none !important; }
+  .sidebar .sidebarTools{ display:none !important; }
+}
+
+
+/* ===== Mobile v7b: 抽屉内一级分类可滚动 ===== */
+@media (max-width: 600px){
+  .sidebar{
+    overflow:auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+/* ===== Desktop: sidebar & content independent scrolling ===== */
+@media (min-width: 601px){
+  html, body{ height:100%; }
+  body{ overflow:hidden; } /* 页面不整体滚动 */
+  .wrap{ min-height:0 !important; height:100vh; padding:20px; }
+  .grid{ height:calc(100vh - 40px); overflow:hidden; }
+
+  /* 左侧独立滚动 */
+  .sidebar{ height:100%; overflow:auto !important; }
+
+  /* 右侧独立滚动：让 main.panel 滚动，#content 保持自然高度 */
+  main.panel{ height:100%; overflow:auto; -webkit-overflow-scrolling:touch; }
+  #content{ height:auto; overflow:visible; }
 }
 
 </style>
@@ -633,7 +725,22 @@ body.mobileSidebarOpen .mobileBackdrop{ display:block; }
 <body>
 <div class="mobileBackdrop" id="mobileBackdrop"></div>
 <div class="mobileTopbar" id="mobileTopbar">
-  <button class="mobileToggleBtn" id="btnMobileToggle" aria-label="打开分类">☰</button>
+  <div class="mobileBrand" title="我的导航">
+    <div class="sidebarBrandIcon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="rgba(37,99,235,.9)" stroke-width="1.7"/>
+  <path d="M2 12h20" stroke="rgba(37,99,235,.75)" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="M12 2c3 3 3 17 0 20" stroke="rgba(37,99,235,.75)" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="M12 2c-3 3-3 17 0 20" stroke="rgba(37,99,235,.35)" stroke-width="1.7" stroke-linecap="round"/>
+</svg></div>
+    <div class="mobileBrandTitle">我的导航</div>
+  </div>
+
+  <div class="mobileTopbarActions">
+    <button class="iconBtn adminOnly" id="btnAddTop_m" title="新增一级" aria-label="新增一级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="rgba(16,24,40,.85)" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button class="iconBtn adminOnly" id="btnAddSub_m" title="新增二级" aria-label="新增二级"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 12l9 5 9-5" stroke="rgba(16,24,40,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 16l9 5 9-5" stroke="rgba(16,24,40,.35)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="iconBtn adminOnly" id="btnAddSite_m" title="新增网站" aria-label="新增网站"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 12" stroke="rgba(16,24,40,.85)" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 12" stroke="rgba(16,24,40,.55)" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <button class="mobileToggleBtn" id="btnMobileToggle" aria-label="打开分类">☰</button>
+  </div>
 </div>
 <div class="wrap">
   <div class="grid">
@@ -1725,6 +1832,139 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(!isMobile()) closeDrawer();
   });
 });
+
+
+// ===== Mobile topbar admin buttons mirror =====
+document.addEventListener("DOMContentLoaded", ()=>{
+  const map = [
+    ["btnAddTop_m","btnAddTop"],
+    ["btnAddSub_m","btnAddSub"],
+    ["btnAddSite_m","btnAddSite"],
+  ];
+  map.forEach(([mid, did])=>{
+    const mBtn = document.getElementById(mid);
+    const dBtn = document.getElementById(did);
+    if(mBtn && dBtn){
+      mBtn.addEventListener("click", (e)=>{
+        e.preventDefault();
+        dBtn.click();
+      });
+    }
+  });
+});
+
+
+
+
+
+// ===== Scroll-to-next/prev top-level category (edge-overscroll only; safer) =====
+(function(){
+  const scroller = document.querySelector("main.panel") || document.getElementById("content");
+  if(!scroller) return;
+
+  // trigger only when user is truly at edge AND keeps trying to scroll further
+  const EDGE = 2;          // px tolerance
+  const WHEEL_MIN = 28;    // ignore tiny wheel deltas
+  const TOUCH_MIN = 24;    // px
+  const COOLDOWN = 900;    // ms
+  const STREAK_MS = 450;   // two attempts within this window
+  let lastSwitchAt = 0;
+
+  // streak tracking: need 2 consecutive "edge attempts" to switch
+  let lastEdgeAttemptAt = 0;
+  let edgeAttemptDir = 0; // +1 bottom->next, -1 top->prev
+  let lastScrollTop = 0;
+
+  function orderedCats(){
+    return ([...(state.categories||[])]).sort(byOrder).filter(c=>c && c.id);
+  }
+  function gotoCatByDelta(delta){
+    const cats = orderedCats();
+    if(!cats.length) return false;
+    let idx = cats.findIndex(c=>c.id===activeCatId);
+    if(idx<0) idx=0;
+    const next = cats[idx + delta];
+    if(!next) return false;
+
+    activeCatId = next.id;
+    activeSubcatId = null;
+    expandedCatIds.add(activeCatId);
+    render();
+    requestAnimationFrame(()=>{ scroller.scrollTop = 0; });
+    return true;
+  }
+  function nearTop(){ return scroller.scrollTop <= EDGE; }
+  function nearBottom(){
+    return (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - EDGE);
+  }
+  function canSwitch(){
+    const now = Date.now();
+    if(now - lastSwitchAt < COOLDOWN) return false;
+    lastSwitchAt = now;
+    return true;
+  }
+  function recordEdgeAttempt(dir){
+    const now = Date.now();
+    if(edgeAttemptDir === dir && (now - lastEdgeAttemptAt) <= STREAK_MS){
+      edgeAttemptDir = 0;
+      lastEdgeAttemptAt = 0;
+      return true;
+    }
+    edgeAttemptDir = dir;
+    lastEdgeAttemptAt = now;
+    return false;
+  }
+
+  scroller.addEventListener("wheel", (e)=>{
+    const dy = e.deltaY || 0;
+
+    // If scroller still scrolling (scrollTop changes), do not switch.
+    const curTop = scroller.scrollTop;
+    const scrolling = curTop !== lastScrollTop;
+    lastScrollTop = curTop;
+
+    if(Math.abs(dy) < WHEEL_MIN) return;
+    if(scrolling) return;
+
+    // IMPORTANT: only switch when the scroller is actually scrollable
+    if(scroller.scrollHeight <= scroller.clientHeight + EDGE) return;
+
+    if(dy > 0 && nearBottom()){
+      if(!recordEdgeAttempt(+1)) return;
+      if(!canSwitch()) return;
+      if(gotoCatByDelta(+1)) e.preventDefault();
+    }else if(dy < 0 && nearTop()){
+      if(!recordEdgeAttempt(-1)) return;
+      if(!canSwitch()) return;
+      if(gotoCatByDelta(-1)) e.preventDefault();
+    }
+  }, {passive:false});
+
+  // Touch
+  let tsY=0;
+  scroller.addEventListener("touchstart", (e)=>{
+    if(e.touches.length!==1) return;
+    tsY = e.touches[0].clientY;
+  }, {passive:true});
+
+  scroller.addEventListener("touchend", (e)=>{
+    const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+    if(!t) return;
+    const dy = t.clientY - tsY; // down positive, up negative
+
+    if(scroller.scrollHeight <= scroller.clientHeight + EDGE) return;
+
+    if(dy < -TOUCH_MIN && nearBottom()){
+      if(!recordEdgeAttempt(+1)) return;
+      if(!canSwitch()) return;
+      gotoCatByDelta(+1);
+    }else if(dy > TOUCH_MIN && nearTop()){
+      if(!recordEdgeAttempt(-1)) return;
+      if(!canSwitch()) return;
+      gotoCatByDelta(-1);
+    }
+  }, {passive:true});
+})();
 
 </script>
 </body>
