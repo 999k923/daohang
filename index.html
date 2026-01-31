@@ -1857,12 +1857,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 
 
-// ===== Scroll-to-next/prev top-level category (edge-overscroll only; safer) =====
+
+// ===== Scroll-to-next/prev top-level category (edge-overscroll; supports non-scrollable single-subcat) =====
 (function(){
+  // Use the actual scroll container (right panel)
   const scroller = document.querySelector("main.panel") || document.getElementById("content");
   if(!scroller) return;
 
-  // trigger only when user is truly at edge AND keeps trying to scroll further
   const EDGE = 2;          // px tolerance
   const WHEEL_MIN = 28;    // ignore tiny wheel deltas
   const TOUCH_MIN = 24;    // px
@@ -1870,7 +1871,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
   const STREAK_MS = 450;   // two attempts within this window
   let lastSwitchAt = 0;
 
-  // streak tracking: need 2 consecutive "edge attempts" to switch
   let lastEdgeAttemptAt = 0;
   let edgeAttemptDir = 0; // +1 bottom->next, -1 top->prev
   let lastScrollTop = 0;
@@ -1893,8 +1893,16 @@ document.addEventListener("DOMContentLoaded", ()=>{
     requestAnimationFrame(()=>{ scroller.scrollTop = 0; });
     return true;
   }
-  function nearTop(){ return scroller.scrollTop <= EDGE; }
+
+  function isScrollable(){
+    return scroller.scrollHeight > (scroller.clientHeight + EDGE);
+  }
+  function nearTop(){
+    if(!isScrollable()) return true; // non-scrollable => both edges
+    return scroller.scrollTop <= EDGE;
+  }
   function nearBottom(){
+    if(!isScrollable()) return true;
     return (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - EDGE);
   }
   function canSwitch(){
@@ -1915,19 +1923,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
     return false;
   }
 
+  // Wheel / trackpad
   scroller.addEventListener("wheel", (e)=>{
     const dy = e.deltaY || 0;
 
-    // If scroller still scrolling (scrollTop changes), do not switch.
     const curTop = scroller.scrollTop;
     const scrolling = curTop !== lastScrollTop;
     lastScrollTop = curTop;
 
     if(Math.abs(dy) < WHEEL_MIN) return;
-    if(scrolling) return;
 
-    // IMPORTANT: only switch when the scroller is actually scrollable
-    if(scroller.scrollHeight <= scroller.clientHeight + EDGE) return;
+    // If it's scrollable and still scrolling, don't switch
+    if(isScrollable() && scrolling) return;
 
     if(dy > 0 && nearBottom()){
       if(!recordEdgeAttempt(+1)) return;
@@ -1951,8 +1958,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
     if(!t) return;
     const dy = t.clientY - tsY; // down positive, up negative
-
-    if(scroller.scrollHeight <= scroller.clientHeight + EDGE) return;
 
     if(dy < -TOUCH_MIN && nearBottom()){
       if(!recordEdgeAttempt(+1)) return;
