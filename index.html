@@ -290,6 +290,33 @@ body.isAdmin .adminOnly{display:inline-flex}
   flex-direction:column;
   gap:8px;
   min-height:150px;
+  position:relative;
+  overflow:hidden;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.card::after{
+  content:"";
+  position:absolute;
+  inset:-40% -60%;
+  background:linear-gradient(120deg, transparent 0%, rgba(59,130,246,.12) 45%, rgba(14,165,233,.18) 55%, transparent 100%);
+  transform:translateX(-70%) rotate(8deg);
+  opacity:0;
+  pointer-events:none;
+}
+@media(hover:hover){
+  .card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(59,130,246,.35);
+    box-shadow:0 14px 28px rgba(15,23,42,.08);
+  }
+  .card:hover::after{
+    opacity:1;
+    animation:cardShine .8s ease;
+  }
+}
+@keyframes cardShine{
+  from{transform:translateX(-70%) rotate(8deg);}
+  to{transform:translateX(70%) rotate(8deg);}
 }
 
 .cardTitle{
@@ -959,7 +986,10 @@ function autoFaviconUrls(siteUrl, size=64){
   const enc = encodeURIComponent(domain);
   return [
     `https://api.iowen.cn/favicon/${enc}.png`,
+    `https://favicon.im/${enc}?larger=true`,
     `https://icon.horse/icon/${enc}?size=${size}`,
+    `https://icons.duckduckgo.com/ip3/${enc}.ico`,
+    `https://favicon.yandex.net/favicon/${enc}`,
     `https://www.google.com/s2/favicons?domain=${enc}&sz=${size}`
   ];
 }
