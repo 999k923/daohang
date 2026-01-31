@@ -193,6 +193,59 @@ body.isAdmin .adminOnly{display:inline-flex}
   gap:8px;
 }
 .catItem.active{background:#eef2ff}
+/* ===== Sidebar 一级分类 hover 动效 ===== */
+.catItem{
+  padding:10px;
+  border-radius:12px;
+  margin-bottom:6px;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+
+  /* 新增 */
+  position: relative;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+  border:1px solid transparent;
+}
+
+.catItem::before{
+  content:"";
+  position:absolute;
+  left:6px;
+  top:10px;
+  bottom:10px;
+  width:3px;
+  border-radius:999px;
+  background: rgba(37,99,235,.75);
+  opacity:0;
+  transform: scaleY(.6);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+
+@media (hover:hover){
+  .catItem:hover{
+    background:#f8fafc;
+    border-color: rgba(59,130,246,.20);
+    box-shadow: 0 10px 22px rgba(15,23,42,.06);
+    transform: translateY(-1px);
+  }
+  .catItem:hover::before{
+    opacity:1;
+    transform: scaleY(1);
+  }
+}
+
+.catItem.active{
+  border-color: rgba(37,99,235,.22);
+}
+.catItem.active::before{
+  opacity:1;
+  transform: scaleY(1);
+}
+
 .catGroup{margin-bottom:8px}
 .catToggle{
   border:none;
