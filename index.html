@@ -290,7 +290,7 @@ body.isAdmin .adminOnly{display:inline-flex}
   flex-direction:column;
   gap:8px;
   min-height:150px;
-  position:relative;
+   position:relative;
   overflow:hidden;
   transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
@@ -980,21 +980,10 @@ function shortUrl(url){
 
 /** favicon / icon */
 function getDomainFromUrl(u){ try { return new URL(u).hostname; } catch { return ""; } }
-function autoFaviconUrls(siteUrl, size=64){
-  const domain = getDomainFromUrl(siteUrl);
-  if(!domain) return [];
-  const enc = encodeURIComponent(domain);
-  return [
-    `https://api.iowen.cn/favicon/${enc}.png`,
-    `https://favicon.im/${enc}?larger=true`,
-    `https://icon.horse/icon/${enc}?size=${size}`,
-    `https://icons.duckduckgo.com/ip3/${enc}.ico`,
-    `https://favicon.yandex.net/favicon/${enc}`,
-    `https://www.google.com/s2/favicons?domain=${enc}&sz=${size}`
-  ];
-}
 function autoFaviconUrl(siteUrl, size=64){
-  return autoFaviconUrls(siteUrl, size)[0] || "";
+  const domain = getDomainFromUrl(siteUrl);
+  if(!domain) return "";
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 function placeholderIconDataUrl(){
   return "data:image/svg+xml;base64," + btoa(
@@ -1004,6 +993,13 @@ function placeholderIconDataUrl(){
     </svg>`
   );
 }
+function resolveIconSrc(site){
+  const manual = (site.icon || "").trim();
+  if(manual) return manual;
+  const auto = autoFaviconUrl(site.url, 64);
+  return auto || placeholderIconDataUrl();
+}
+
 function getCategoryIcon(cat){
   const raw = (cat.icon || "").trim();
   return raw || "📁";
@@ -1495,26 +1491,8 @@ function renderSiteCard(cat, subcat, site){
   left.style.minWidth="0";
 
   const icon=document.createElement("img");
-  const manualIcon = (site.icon || "").trim();
-  const fallbackIcons = [];
-  if(manualIcon){
-    icon.src = manualIcon;
-    fallbackIcons.push(...autoFaviconUrls(site.url, 64), placeholderIconDataUrl());
-  }else{
-    const autos = autoFaviconUrls(site.url, 64);
-    icon.src = autos[0] || placeholderIconDataUrl();
-    fallbackIcons.push(...autos.slice(1), placeholderIconDataUrl());
-  }
-  icon._fallbacks = fallbackIcons;
-  icon.onerror=()=>{
-    const next = icon._fallbacks && icon._fallbacks.length ? icon._fallbacks.shift() : "";
-    if(next && icon.src !== next){
-      icon.src = next;
-      return;
-    }
-    icon.onerror=null;
-    icon.src=placeholderIconDataUrl();
-  };
+  icon.src=resolveIconSrc(site);
+  icon.onerror=()=>{ icon.onerror=null; icon.src=placeholderIconDataUrl(); };
   icon.style.width="34px";
   icon.style.height="34px";
   icon.style.borderRadius="12px";
