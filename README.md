@@ -1,4 +1,10 @@
+前台不登录，直接访问使用
+==
 <img width="1157" height="562" alt="image" src="https://github.com/user-attachments/assets/3843151f-2cf8-4a54-a0f0-96501f1acbe4" />
+前台登录账号，可以直接进行增删改操作
+==
+<img width="1129" height="864" alt="image" src="https://github.com/user-attachments/assets/4f2601cf-5923-4924-a62c-5bf4b10f9a73" />
+
 
 # 实现前端管理，登录账号就有操作权限，不登录可以访问不能编辑。
 
