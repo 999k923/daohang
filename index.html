@@ -1343,12 +1343,18 @@ function renderSidebar(){
       }
     };
 
-    item.onclick=()=>{
-      activeCatId=cat.id;
-      activeSubcatId=null;
-      expandedCatIds.add(cat.id);
-      render();
-    };
+    item.onclick = () => {
+  // 先选中这个一级分类
+  activeCatId = cat.id;
+  activeSubcatId = null;
+
+  // 再切换展开/收起（点哪里都一样）
+  if (expandedCatIds.has(cat.id)) expandedCatIds.delete(cat.id);
+  else expandedCatIds.add(cat.id);
+
+  render();
+};
+
 
     right.append(edit, del);
     item.append(left, right);
