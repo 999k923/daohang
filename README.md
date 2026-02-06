@@ -16,7 +16,7 @@
 
 目录建议：
 
-前端：inde.html (放到网站的主目录下）
+前端：inde.html和favicon.ico (放到网站的主目录下）
 
 后端：/opt/nav2/nav-api/（放 server.js + package.json 等）
 
