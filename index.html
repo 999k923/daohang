@@ -1522,6 +1522,16 @@ function renderSubcatBlock(cat, subcat, sites, searchMode){
 function renderSiteCard(cat, subcat, site){
   const card=document.createElement("div");
   card.className="card";
+    const canClickWholeCard = !isAdmin();
+
+  if(canClickWholeCard){
+    card.style.cursor = "pointer";
+    card.addEventListener("click",(e)=>{
+      if(e.target.closest("a,button")) return;
+      if(site.url) window.open(site.url,"_blank","noopener,noreferrer");
+      else toast("无URL");
+    });
+  }
 
   // drag-sort meta (admin only)
   card.dataset.siteId = site.id;
@@ -1631,7 +1641,8 @@ function renderSiteCard(cat, subcat, site){
   // prevent click opening
   dhandle.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); });
 
-  acts.append(go, dhandle, edit, del);
+  if(!canClickWholeCard) acts.append(go);
+  acts.append(dhandle, edit, del);
 
   top.append(left, acts);
 
