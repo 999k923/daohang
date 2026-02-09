@@ -291,20 +291,22 @@ body.isAdmin .adminOnly{display:inline-flex}
   display:flex;
   align-items:center;
   gap:6px;
+  justify-content:flex-end;
+  min-width:12px;
 }
 .catAlignLine{
-  width:3px;
-  height:22px;
+  width:2px;
+  height:24px;
   border-radius:999px;
-  background:rgba(148,163,184,.55);
+  background:rgba(100,116,139,.85);
   flex:0 0 auto;
 }
 .catItem.active .catAlignLine{
-  background:rgba(37,99,235,.75);
+  background:rgba(37,99,235,.95);
 }
 @media (hover:hover){
   .catItem:hover .catAlignLine{
-    background:rgba(59,130,246,.62);
+    background:rgba(59,130,246,.82);
   }
 }
 .catGroup.expanded .catToggleIcon{transform:rotate(90deg)}
@@ -1383,7 +1385,7 @@ function renderSidebar(){
 };
 
 
-    right.append(edit, del);
+    right.append(edit, del, line);
     item.append(left, right);
 
     const subList=document.createElement("div");
