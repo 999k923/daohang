@@ -187,23 +187,15 @@ body.isAdmin .adminOnly{display:inline-flex}
   border-radius:12px;
   margin-bottom:6px;
   cursor:pointer;
-  display:flex;
-  justify-content:space-between;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
   gap:8px;
+  min-height:44px;
 }
 .catItem.active{background:#eef2ff}
 /* ===== Sidebar 一级分类 hover 动效 ===== */
 .catItem{
-  padding:10px;
-  border-radius:12px;
-  margin-bottom:6px;
-  cursor:pointer;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-
   /* 新增 */
   position: relative;
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
@@ -282,6 +274,38 @@ body.isAdmin .adminOnly{display:inline-flex}
   width:100%;
   height:100%;
   object-fit:cover;
+}
+.catMain{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.catName{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.catActions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.catAlignLine{
+  width:3px;
+  height:22px;
+  border-radius:999px;
+  background:rgba(148,163,184,.55);
+  flex:0 0 auto;
+}
+.catItem.active .catAlignLine{
+  background:rgba(37,99,235,.75);
+}
+@media (hover:hover){
+  .catItem:hover .catAlignLine{
+    background:rgba(59,130,246,.62);
+  }
 }
 .catGroup.expanded .catToggleIcon{transform:rotate(90deg)}
 .subList{
@@ -1290,9 +1314,7 @@ function renderSidebar(){
     item.className="catItem"+(cat.id===activeCatId?" active":"");
 
     const left=document.createElement("div");
-    left.style.display="flex";
-    left.style.alignItems="center";
-    left.style.gap="8px";
+    left.className="catMain";
 
     const toggle=document.createElement("button");
     toggle.className="catToggle";
@@ -1311,16 +1333,21 @@ function renderSidebar(){
     toggle.appendChild(toggleIcon);
 
     const name=document.createElement("div");
+    name.className="catName";
     name.textContent=cat.name;
+    name.title=cat.name||"";
 
     const catIcon = createCategoryIconNode(cat);
 
     left.append(toggle, catIcon, name);
 
     const right=document.createElement("div");
-    right.style.display="flex";
-    right.style.gap="6px";
+    right.className="catActions";
 
+    const line=document.createElement("span");
+    line.className="catAlignLine";
+    line.setAttribute("aria-hidden","true");
+    
     const edit=document.createElement("button");
     edit.className="btn adminOnly";
     edit.textContent="✎";
