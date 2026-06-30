@@ -3,7 +3,7 @@
 <img width="1227" height="629" alt="image" src="https://github.com/user-attachments/assets/21a12ce6-fa41-4616-95e4-808046a06d07" />
 
 
-前台登录账号，可以直接进行增删改操作
+前台登录账号，可以直接进行增删改操作（网页端html书签直接导入使用）
 ==
 <img width="1129" height="864" alt="image" src="https://github.com/user-attachments/assets/4f2601cf-5923-4924-a62c-5bf4b10f9a73" />
 
